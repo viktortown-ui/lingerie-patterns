@@ -11,7 +11,15 @@ import { resolveText, t } from "../i18n/i18n.js";
 import { toggleTheme } from "../styles/theme.js";
 import { upsertProfile, deleteProfile } from "../state/store.js";
 
-export function Editor({ moduleId, language, state, onBack, onThemeToggle, onLanguageToggle }) {
+export function Editor({
+  moduleId,
+  language,
+  state,
+  onBack,
+  onThemeToggle,
+  onLanguageToggle,
+  onPaperSizeChange,
+}) {
   const module = getModule(moduleId);
   if (!module) {
     const fallback = createEl("div", { className: "card", text: t("editor.moduleNotFound") });
@@ -154,6 +162,23 @@ export function Editor({ moduleId, language, state, onBack, onThemeToggle, onLan
   const actionBar = createEl("div", { className: "actions" });
   const exportSvgButton = createEl("button", { text: t("editor.downloadSvg") });
   const exportPdfButton = createEl("button", { text: t("editor.downloadPdf") });
+  const paperLabel = createEl("span", { className: "muted", text: t("editor.paperSize") });
+  const paperSelect = createEl("select", {
+    attrs: { value: state.paperSize || "A4" },
+  });
+  [
+    { value: "A4", label: t("editor.paperSizeA4") },
+    { value: "A3", label: t("editor.paperSizeA3") },
+  ].forEach((option) => {
+    const opt = createEl("option", { text: option.label, attrs: { value: option.value } });
+    if ((state.paperSize || "A4") === option.value) opt.selected = true;
+    paperSelect.appendChild(opt);
+  });
+  const handlePaperChange = (event) => {
+    onPaperSizeChange?.(String(event.target.value));
+  };
+  paperSelect.addEventListener("change", handlePaperChange);
+  paperSelect.addEventListener("input", handlePaperChange);
 
   exportSvgButton.addEventListener("click", () => {
     if (!draft) return toast.show(t("editor.generateDraftFirst"));
@@ -167,14 +192,46 @@ export function Editor({ moduleId, language, state, onBack, onThemeToggle, onLan
 
   exportPdfButton.addEventListener("click", () => {
     if (!draft) return toast.show(t("editor.generateDraftFirst"));
-    const { data } = pdfExport(draft, { marginMm: 10 });
+    const optionsSummary = module.schema.options?.length
+      ? module.schema.options
+          .map((option) => {
+            const selected = option.choices.find((choice) => choice.value === optionValues[option.key]);
+            return `${resolveText(option.label)}: ${resolveText(selected?.label ?? optionValues[option.key])}`;
+          })
+          .join(", ")
+      : t("editor.noOptionsSelected");
+    const seamField = module.schema.fields.find((field) => field.key.toLowerCase().includes("seam"));
+    const seamValue = seamField ? `${formValues[seamField.key]}${module.schema.unit}` : null;
+    const seamOption = module.schema.options?.find((option) => option.key.toLowerCase().includes("seam"));
+    const seamOptionValue = seamOption ? optionValues[seamOption.key] : null;
+    const seamOptionLabel =
+      seamOptionValue === "on"
+        ? t("export.seamAllowanceOn")
+        : seamOptionValue === "off"
+          ? t("export.seamAllowanceOff")
+          : seamOptionValue;
+    const seamSummary = seamValue || seamOptionLabel || "";
+
+    const { data } = pdfExport(draft, {
+      marginMm: 10,
+      paperSize: state.paperSize || "A4",
+      info: {
+        moduleName: resolveText(module.name),
+        generatedAt: new Date().toLocaleString(),
+        optionsSummary,
+        seamAllowance: seamSummary,
+        seamAllowanceApplied: draft.meta?.seamAllowanceApplied,
+        legendText: t("export.legend"),
+        instructionText: t("export.instructions"),
+      },
+    });
     const url = URL.createObjectURL(data);
     const link = createEl("a", { attrs: { href: url, download: `${module.id}.pdf` } });
     link.click();
     URL.revokeObjectURL(url);
   });
 
-  actionBar.append(exportSvgButton, exportPdfButton);
+  actionBar.append(paperLabel, paperSelect, exportSvgButton, exportPdfButton);
 
   sidebar.append(sidebarTitle, form.el, profileTitle, profileList, saveProfileButton);
   previewCard.append(preview.el);

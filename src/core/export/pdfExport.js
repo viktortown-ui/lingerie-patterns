@@ -1,6 +1,9 @@
 import { Units } from "../geometry/Units.js";
 
-const A4 = { widthMm: 210, heightMm: 297 };
+const PAPER_SIZES = {
+  A4: { widthMm: 210, heightMm: 297 },
+  A3: { widthMm: 297, heightMm: 420 },
+};
 
 function mergeBounds(paths) {
   const boundsList = paths.map((path) => path.bounds());
@@ -37,7 +40,22 @@ function pathToPdf(path, unitScale) {
 }
 
 function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
-  const mark = 12;
+  const mark = Units.toPtFromMm(4);
+  const cross = Units.toPtFromMm(3);
+  const corners = [
+    { x: marginPt, y: marginPt },
+    { x: marginPt + contentWidthPt, y: marginPt },
+    { x: marginPt, y: marginPt + contentHeightPt },
+    { x: marginPt + contentWidthPt, y: marginPt + contentHeightPt },
+  ];
+  const crosses = corners
+    .map((corner) =>
+      [
+        `${corner.x - cross} ${corner.y} m ${corner.x + cross} ${corner.y} l`,
+        `${corner.x} ${corner.y - cross} m ${corner.x} ${corner.y + cross} l`,
+      ].join("\n")
+    )
+    .join("\n");
   return [
     `0 ${marginPt} m ${mark} ${marginPt} l`,
     `${marginPt} 0 m ${marginPt} ${mark} l`,
@@ -47,25 +65,98 @@ function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
     `${marginPt} ${contentHeightPt + marginPt - mark} m ${marginPt} ${contentHeightPt + marginPt} l`,
     `${contentWidthPt + marginPt - mark} ${contentHeightPt + marginPt} m ${contentWidthPt + marginPt} ${contentHeightPt + marginPt} l`,
     `${contentWidthPt + marginPt} ${contentHeightPt + marginPt - mark} m ${contentWidthPt + marginPt} ${contentHeightPt + marginPt} l`,
+    crosses,
   ].join("\n");
 }
 
-function calibrationMark({ marginPt }) {
-  const size = Units.toPtFromMm(10);
+function calibrationMark({ marginPt, pageHeightPt }) {
+  const size = Units.toPtFromMm(50);
   const x = marginPt;
-  const y = marginPt + size + 6;
+  const y = pageHeightPt - marginPt - size;
   return [
+    "1 0 0 RG",
+    "1 0 0 rg",
     `${x} ${y} m ${x + size} ${y} l`,
-    `${x + size} ${y} l ${x + size} ${y - size} l`,
-    `${x + size} ${y - size} l ${x} ${y - size} l`,
-    `${x} ${y - size} l ${x} ${y} l`,
+    `${x + size} ${y} l ${x + size} ${y + size} l`,
     "S",
     "BT",
     "/F1 8 Tf",
-    `${x} ${y + 4} Td`,
-    "(10mm calibration) Tj",
+    `${x} ${y - Units.toPtFromMm(4)} Td`,
+    "(50mm) Tj",
     "ET",
+    "0 0 0 RG",
+    "0 0 0 rg",
   ].join("\n");
+}
+
+function annotationPaths(annotations, unitScale) {
+  const arrowSize = Units.toPtFromMm(3);
+  const arrowAngle = Math.PI / 6;
+  const parts = [];
+
+  annotations.forEach((anno) => {
+    if (anno.type === "grainline") {
+      const x1 = anno.start.x * unitScale;
+      const y1 = anno.start.y * unitScale;
+      const x2 = anno.end.x * unitScale;
+      const y2 = anno.end.y * unitScale;
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const leftX = x2 - arrowSize * Math.cos(angle - arrowAngle);
+      const leftY = y2 - arrowSize * Math.sin(angle - arrowAngle);
+      const rightX = x2 - arrowSize * Math.cos(angle + arrowAngle);
+      const rightY = y2 - arrowSize * Math.sin(angle + arrowAngle);
+      parts.push(`${x1} ${y1} m ${x2} ${y2} l`);
+      parts.push(`${x2} ${y2} m ${leftX} ${leftY} l`);
+      parts.push(`${x2} ${y2} m ${rightX} ${rightY} l`);
+    }
+    if (anno.type === "notch") {
+      const x = anno.point.x * unitScale;
+      const y = anno.point.y * unitScale;
+      const size = Units.toPtFromMm(2.5);
+      parts.push(`${x - size} ${y} m ${x + size} ${y} l`);
+      parts.push(`${x} ${y - size} m ${x} ${y + size} l`);
+    }
+  });
+
+  if (!parts.length) return "";
+  return `${parts.join("\n")}\nS`;
+}
+
+function labelCommands({
+  annotations,
+  unitScale,
+  offsetPtX,
+  offsetPtY,
+  minXPt,
+  minYPt,
+  pageHeightPt,
+  marginPt,
+  contentWidthPt,
+  contentHeightPt,
+}) {
+  const labels = annotations.filter((anno) => anno.type === "label");
+  const commands = [];
+  const tileMinXPt = minXPt + offsetPtX;
+  const tileMaxXPt = tileMinXPt + contentWidthPt;
+  const tileMinYPt = minYPt + offsetPtY;
+  const tileMaxYPt = tileMinYPt + contentHeightPt;
+
+  labels.forEach((anno) => {
+    const xPt = anno.point.x * unitScale;
+    const yPt = anno.point.y * unitScale;
+    if (xPt < tileMinXPt || xPt > tileMaxXPt || yPt < tileMinYPt || yPt > tileMaxYPt) {
+      return;
+    }
+    const pageX = xPt + marginPt - offsetPtX - minXPt;
+    const pageY = pageHeightPt - (yPt + marginPt + offsetPtY + minYPt);
+    commands.push("BT");
+    commands.push("/F1 8 Tf");
+    commands.push(`${pageX} ${pageY} Td`);
+    commands.push(`(${String(anno.text).replace(/[()]/g, "")}) Tj`);
+    commands.push("ET");
+  });
+
+  return commands.join("\n");
 }
 
 function buildPdf(pages, pageSizePt) {
@@ -111,20 +202,23 @@ function buildPdf(pages, pageSizePt) {
 export function pdfExport(draft, options = {}) {
   const unit = draft.meta?.unit || "cm";
   const marginMm = options.marginMm ?? 10;
-  const paths = Object.values(draft.paths);
+  const paper = PAPER_SIZES[options.paperSize] || PAPER_SIZES.A4;
+  const info = options.info || {};
+  const pathEntries = Object.entries(draft.paths).map(([name, path]) => ({ name, path }));
+  const paths = pathEntries.map(({ path }) => path);
   const bounds = mergeBounds(paths);
   const widthMm = Units.toMm(bounds.maxX - bounds.minX, unit);
   const heightMm = Units.toMm(bounds.maxY - bounds.minY, unit);
 
-  const contentWidthMm = A4.widthMm - marginMm * 2;
-  const contentHeightMm = A4.heightMm - marginMm * 2;
+  const contentWidthMm = paper.widthMm - marginMm * 2;
+  const contentHeightMm = paper.heightMm - marginMm * 2;
 
   const cols = Math.max(1, Math.ceil(widthMm / contentWidthMm));
   const rows = Math.max(1, Math.ceil(heightMm / contentHeightMm));
 
   const pageSizePt = {
-    width: Units.toPtFromMm(A4.widthMm),
-    height: Units.toPtFromMm(A4.heightMm),
+    width: Units.toPtFromMm(paper.widthMm),
+    height: Units.toPtFromMm(paper.heightMm),
   };
 
   const unitScale = Units.toPtFromMm(Units.toMm(1, unit));
@@ -132,6 +226,9 @@ export function pdfExport(draft, options = {}) {
   const minYPt = bounds.minY * unitScale;
 
   const pages = [];
+  const hasSeamPaths = pathEntries.some((entry) => entry.name.toLowerCase().includes("seam"));
+  const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
+
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
       const offsetMmX = col * contentWidthMm;
@@ -142,9 +239,79 @@ export function pdfExport(draft, options = {}) {
       const contentWidthPt = Units.toPtFromMm(contentWidthMm);
       const contentHeightPt = Units.toPtFromMm(contentHeightMm);
 
-      const pathCommands = paths.map((path) => pathToPdf(path, unitScale)).join("\n");
+      const pathCommands = pathEntries
+        .map((entry) => {
+          const isSeam = entry.name.toLowerCase().includes("seam");
+          const dash = isSeam
+            ? "[] 0 d"
+            : seamAllowanceApplied
+              ? "[3 3] 0 d"
+              : "[] 0 d";
+          return [dash, pathToPdf(entry.path, unitScale)].join("\n");
+        })
+        .join("\n");
+      const annotationCommands = annotationPaths(draft.annotations || [], unitScale);
       const marks = assemblyMarks({ marginPt, contentWidthPt, contentHeightPt });
-      const calibration = row === 0 && col === 0 ? calibrationMark({ marginPt }) : "";
+      const calibration =
+        row === 0 && col === 0 ? calibrationMark({ marginPt, pageHeightPt: pageSizePt.height }) : "";
+      const pageLabel = `R${row + 1}C${col + 1}`;
+      const labelText = labelCommands({
+        annotations: draft.annotations || [],
+        unitScale,
+        offsetPtX,
+        offsetPtY,
+        minXPt,
+        minYPt,
+        pageHeightPt: pageSizePt.height,
+        marginPt,
+        contentWidthPt,
+        contentHeightPt,
+      });
+
+      const infoLines = [];
+      if (row === 0 && col === 0) {
+        if (info.moduleName) infoLines.push(`Pattern: ${info.moduleName}`);
+        if (info.generatedAt) infoLines.push(`Generated: ${info.generatedAt}`);
+        if (info.optionsSummary) infoLines.push(`Options: ${info.optionsSummary}`);
+        if (info.seamAllowance) infoLines.push(`Seam allowance: ${info.seamAllowance}`);
+      }
+
+      const infoBlock = infoLines.length
+        ? [
+            "BT",
+            "/F1 8 Tf",
+            "12 TL",
+            `${marginPt} ${marginPt + Units.toPtFromMm(18)} Td`,
+            infoLines
+              .map((line, index) =>
+                [index > 0 ? "T*" : "", `(${line.replace(/[()]/g, "")}) Tj`].join(" ").trim()
+              )
+              .join("\n"),
+            "ET",
+          ].join("\n")
+        : "";
+
+      const legendBlock =
+        seamAllowanceApplied && row === 0 && col === 0 && info.legendText
+          ? [
+              "BT",
+              "/F1 8 Tf",
+              `${marginPt} ${marginPt + Units.toPtFromMm(10)} Td`,
+              `(${info.legendText.replace(/[()]/g, "")}) Tj`,
+              "ET",
+            ].join("\n")
+          : "";
+
+      const instructions =
+        row === 0 && col === 0 && info.instructionText
+          ? [
+              "BT",
+              "/F1 8 Tf",
+              `${marginPt} ${pageSizePt.height - marginPt - Units.toPtFromMm(10)} Td`,
+              `(${info.instructionText.replace(/[()]/g, "")}) Tj`,
+              "ET",
+            ].join("\n")
+          : "";
 
       const stream = [
         "q",
@@ -152,7 +319,9 @@ export function pdfExport(draft, options = {}) {
         `${marginPt} ${marginPt} ${contentWidthPt} ${contentHeightPt} re W n`,
         `1 0 0 1 ${marginPt - offsetPtX - minXPt} ${marginPt + offsetPtY + minYPt} cm`,
         "0.5 w",
+        "0 0 0 RG",
         pathCommands,
+        annotationCommands,
         "Q",
         "q",
         "0 0 0 rg",
@@ -160,11 +329,15 @@ export function pdfExport(draft, options = {}) {
         marks,
         "S",
         calibration,
+        instructions,
         "BT",
         "/F1 10 Tf",
-        `${marginPt} ${pageSizePt.height - marginPt - 12} Td`,
-        `(${row + 1},${col + 1}) Tj`,
+        `${pageSizePt.width - marginPt - Units.toPtFromMm(30)} ${pageSizePt.height - marginPt - 12} Td`,
+        `(${pageLabel}) Tj`,
         "ET",
+        labelText,
+        infoBlock,
+        legendBlock,
         "Q",
       ].join("\n");
 

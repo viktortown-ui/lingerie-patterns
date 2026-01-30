@@ -1,6 +1,6 @@
 export const schema = {
   id: "panties_basic",
-  name: "Panties Basic",
+  name: { en: "Panties Basic", ru: "Базовые трусики" },
   unit: "cm",
   fields: [
     {

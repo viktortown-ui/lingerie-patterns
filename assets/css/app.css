@@ -191,6 +191,14 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.actions select {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .toast {
   position: fixed;
   right: var(--pad);
