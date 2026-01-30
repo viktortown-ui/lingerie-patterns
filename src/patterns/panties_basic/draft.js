@@ -52,6 +52,8 @@ export function draftPanties(measurements, options = {}) {
     meta: {
       unit: "cm",
       title: "Panties Basic",
+      moduleId: "panties_basic",
+      moduleVersion: "0.1.0",
       seamAllowanceApplied: seamAllowance > 0,
     },
   };

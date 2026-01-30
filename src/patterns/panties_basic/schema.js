@@ -52,6 +52,16 @@ export const schema = {
       ],
       default: "classic",
     },
+    {
+      key: "seamAllowance",
+      label: "Seam allowance",
+      description: "Add a default seam allowance around the panel.",
+      choices: [
+        { label: "Off", value: "off" },
+        { label: "On", value: "on" },
+      ],
+      default: "off",
+    },
   ],
   optionDefaults: {
     style: "classic",

@@ -3,11 +3,11 @@ import { initTheme } from "../../src/ui/styles/theme.js";
 import { Home } from "../../src/ui/screens/Home.js";
 import { Editor } from "../../src/ui/screens/Editor.js";
 import { loadState, saveState } from "../../src/ui/state/store.js";
-import pantiesModule from "../../src/patterns/panties_basic/module.js";
+import { modules } from "../../src/patterns/index.js";
 
 const app = document.getElementById("app");
 
-registerModule(pantiesModule);
+modules.forEach((module) => registerModule(module));
 
 const state = loadState();
 initTheme(state.theme);

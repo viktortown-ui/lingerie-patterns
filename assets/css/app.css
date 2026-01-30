@@ -148,7 +148,7 @@ button:disabled {
   flex-wrap: wrap;
   gap: 10px;
   position: sticky;
-  bottom: 0;
+  bottom: env(safe-area-inset-bottom);
   padding: var(--pad);
   padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, rgba(246, 244, 242, 0.1), var(--bg));
