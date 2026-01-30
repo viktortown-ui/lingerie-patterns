@@ -29,9 +29,15 @@ export function Preview({ getDraft, getSummary }) {
   const zoomLabel = createEl("span", { className: "preview-zoom-label", text: "100%" });
 
   const viewport = createEl("div", { className: "preview-viewport" });
+  const infoPanel = createEl("div", { className: "preview-info" });
+  const infoTitle = createEl("div", { className: "preview-info-title" });
+  const infoScale = createEl("div", { className: "preview-info-line" });
+  const infoSummary = createEl("div", { className: "preview-info-line" });
+  const infoLegend = createEl("div", { className: "preview-info-line" });
 
   toolbar.append(fitButton, zoomOutButton, zoomInButton, resetButton, zoomLabel);
-  wrapper.append(toolbar, viewport);
+  infoPanel.append(infoTitle, infoScale, infoSummary, infoLegend);
+  wrapper.append(toolbar, viewport, infoPanel);
 
   let svgEl = null;
   let viewBoxSize = null;
@@ -39,6 +45,7 @@ export function Preview({ getDraft, getSummary }) {
   // Zoom is absolute: 1.0 = 100% of SVG units
   let zoomFactor = 1;
   let fitMode = true;
+  const maxFitZoom = 1;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -82,7 +89,7 @@ export function Preview({ getDraft, getSummary }) {
 
   const applyFit = () => {
     fitMode = true;
-    zoomFactor = clamp(getFitScale(), 0.1, 10);
+    zoomFactor = clamp(Math.min(getFitScale(), maxFitZoom), 0.1, 10);
     applyZoom();
   };
 
@@ -160,11 +167,13 @@ export function Preview({ getDraft, getSummary }) {
     const draft = getDraft();
     if (!draft) {
       viewport.textContent = t("preview.noPreview");
+      infoPanel.hidden = true;
       return;
     }
 
     const svgString = svgExport(draft, getSummary(), {
       resolveText,
+      mode: "preview",
       labels: {
         unitsLabel: t("export.unitsLabel"),
         seamAllowanceLabel: t("export.seamAllowanceLabel"),
@@ -172,6 +181,7 @@ export function Preview({ getDraft, getSummary }) {
         seamAllowanceOff: t("export.seamAllowanceOff"),
         legendLines: t("export.legendShort"),
         calibration: t("export.calibrationMark"),
+        patternTitle: t("export.patternTitle"),
       },
     });
     const container = createEl("div");
@@ -179,6 +189,7 @@ export function Preview({ getDraft, getSummary }) {
     const nextSvg = container.querySelector("svg");
     if (!nextSvg) {
       viewport.textContent = t("preview.unavailable");
+      infoPanel.hidden = true;
       return;
     }
 
@@ -194,6 +205,22 @@ export function Preview({ getDraft, getSummary }) {
     svgEl.querySelectorAll("path,line,polyline,polygon").forEach((el) => {
       el.setAttribute("vector-effect", "non-scaling-stroke");
     });
+
+    const unit = draft.meta?.unit || "cm";
+    const hasSeamPaths = Object.keys(draft.paths || {}).some((name) => name.toLowerCase().includes("seam"));
+    const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
+    const seamAllowanceLabel = seamAllowanceApplied ? t("export.seamAllowanceOn") : t("export.seamAllowanceOff");
+    const scaleInfo = `${t("export.unitsLabel")}: ${unit} | ${t("export.seamAllowanceLabel")}: ${seamAllowanceLabel}`;
+    const summaryText = getSummary().join(", ");
+    const titleText = resolveText(draft.meta?.title) || t("export.patternTitle");
+
+    infoTitle.textContent = titleText;
+    infoScale.textContent = scaleInfo;
+    infoSummary.textContent = summaryText;
+    infoSummary.hidden = !summaryText;
+    infoLegend.textContent = seamAllowanceApplied ? t("export.legendShort") : "";
+    infoLegend.hidden = !seamAllowanceApplied;
+    infoPanel.hidden = false;
 
     applyFit();
   };

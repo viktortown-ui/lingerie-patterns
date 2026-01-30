@@ -173,6 +173,18 @@ button:disabled {
   padding-bottom: 32px;
 }
 
+.preview-info {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.preview-info-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
