@@ -27,7 +27,7 @@ Pattern modules are ES modules that export an object conforming to the `PatternM
     }
   ],
   defaults: Record<string, number>,
-  options: [
+  options?: [
     {
       key: string,
       label: string,
@@ -36,7 +36,7 @@ Pattern modules are ES modules that export an object conforming to the `PatternM
       default: string
     }
   ],
-  optionDefaults: Record<string, string>
+  optionDefaults?: Record<string, string>
 }
 ```
 
@@ -52,6 +52,8 @@ Pattern modules are ES modules that export an object conforming to the `PatternM
   meta: {
     unit: "cm" | "mm" | "in",
     title: string,
+    moduleId: string,
+    moduleVersion: string,
     seamAllowanceApplied: boolean
   }
 }

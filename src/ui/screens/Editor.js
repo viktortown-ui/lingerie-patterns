@@ -82,18 +82,6 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
     },
   });
 
-  const optionForm = createEl("div", { className: "form-group" });
-  const seamToggle = createEl("input", { attrs: { type: "checkbox" } });
-  seamToggle.checked = optionValues.seamAllowance === "on";
-  const seamLabel = createEl("label", { text: "Include seam allowance" });
-  const seamRow = createEl("div", { className: "toggle" });
-  seamRow.append(seamToggle, seamLabel);
-  optionForm.append(seamRow);
-  seamToggle.addEventListener("change", () => {
-    optionValues.seamAllowance = seamToggle.checked ? "on" : "off";
-    handleChange(formValues, validateSchema(module.schema, formValues));
-  });
-
   const profileTitle = createEl("h4", { text: "Profiles" });
   const profileList = createEl("div", { className: "profile-list" });
 
@@ -168,7 +156,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
 
   actionBar.append(exportSvgButton, exportPdfButton);
 
-  sidebar.append(title, form.el, optionForm, profileTitle, profileList, saveProfileButton);
+  sidebar.append(title, form.el, profileTitle, profileList, saveProfileButton);
   previewCard.append(preview.el);
 
   container.append(header, sidebar, previewCard, actionBar, toast.el);
