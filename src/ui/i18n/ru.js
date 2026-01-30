@@ -15,7 +15,11 @@ export const ru = {
   "editor.profileNamePrompt": "Название профиля",
   "editor.profileSaved": "Профиль сохранён",
   "editor.downloadSvg": "Скачать SVG",
-  "editor.downloadPdf": "Скачать PDF (A4)",
+  "editor.downloadPdf": "Скачать PDF",
+  "editor.paperSize": "Бумага",
+  "editor.paperSizeA4": "A4 плитками",
+  "editor.paperSizeA3": "A3 (плитками при необходимости)",
+  "editor.noOptionsSelected": "Опции не выбраны",
   "editor.generateDraftFirst": "Сначала создайте выкройку",
   "editor.draftFailed": "Не удалось создать выкройку",
   "form.options": "Опции",
@@ -30,4 +34,9 @@ export const ru = {
   "preview.reset": "Сброс",
   "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
   "preview.unavailable": "Предпросмотр недоступен.",
+
+  "export.instructions": "Печать в масштабе 100% / Actual size. Отключите «Fit to page». Измерьте отметку 50mm линейкой.",
+  "export.legend": "Легенда: линия кроя — сплошная, линия строчки — пунктир",
+  "export.seamAllowanceOn": "Вкл.",
+  "export.seamAllowanceOff": "Выкл.",
 };

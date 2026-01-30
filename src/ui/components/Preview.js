@@ -36,8 +36,9 @@ export function Preview({ getDraft, getSummary }) {
   let svgEl = null;
   let viewBoxSize = null;
 
-  // Zoom is relative to "fit" scale: 1.0 = fit
+  // Zoom is absolute: 1.0 = 100% of SVG units
   let zoomFactor = 1;
+  let fitMode = true;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -64,8 +65,7 @@ export function Preview({ getDraft, getSummary }) {
   const applyZoom = () => {
     if (!svgEl || !viewBoxSize) return;
 
-    const base = getFitScale();
-    const scale = base * zoomFactor;
+    const scale = zoomFactor;
 
     // Set explicit pixel size so scrollbars represent scaled extents.
     svgEl.style.width = `${viewBoxSize.width * scale}px`;
@@ -75,12 +75,24 @@ export function Preview({ getDraft, getSummary }) {
   };
 
   const setZoomFactor = (next) => {
+    fitMode = false;
     zoomFactor = clamp(next, 0.1, 10);
     applyZoom();
   };
 
-  fitButton.addEventListener("click", () => setZoomFactor(1));
-  resetButton.addEventListener("click", () => setZoomFactor(1));
+  const applyFit = () => {
+    fitMode = true;
+    zoomFactor = clamp(getFitScale(), 0.1, 10);
+    applyZoom();
+  };
+
+  const resetZoom = () => {
+    fitMode = false;
+    setZoomFactor(1);
+  };
+
+  fitButton.addEventListener("click", applyFit);
+  resetButton.addEventListener("click", resetZoom);
   zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
   zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
 
@@ -134,7 +146,13 @@ export function Preview({ getDraft, getSummary }) {
   viewport.addEventListener("pointercancel", endDrag);
   viewport.addEventListener("pointerleave", endDrag);
 
-  const resizeObserver = new ResizeObserver(() => applyZoom());
+  const resizeObserver = new ResizeObserver(() => {
+    if (fitMode) {
+      applyFit();
+    } else {
+      applyZoom();
+    }
+  });
   resizeObserver.observe(viewport);
 
   const render = () => {
@@ -164,8 +182,7 @@ export function Preview({ getDraft, getSummary }) {
     viewport.appendChild(nextSvg);
     svgEl = nextSvg;
 
-    zoomFactor = 1;
-    applyZoom();
+    applyFit();
   };
 
   render();

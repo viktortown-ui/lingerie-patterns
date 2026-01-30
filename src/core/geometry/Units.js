@@ -8,6 +8,12 @@ export const Units = {
     if (unit === "in") return value * 25.4;
     return value;
   },
+  fromMm(mm, unit = "cm") {
+    if (unit === "mm") return mm;
+    if (unit === "cm") return mm / 10;
+    if (unit === "in") return mm / 25.4;
+    return mm;
+  },
   toPtFromMm(mm) {
     return (mm / 25.4) * 72;
   },

@@ -15,7 +15,11 @@ export const en = {
   "editor.profileNamePrompt": "Profile name",
   "editor.profileSaved": "Profile saved",
   "editor.downloadSvg": "Download SVG",
-  "editor.downloadPdf": "Download PDF (A4)",
+  "editor.downloadPdf": "Download PDF",
+  "editor.paperSize": "Paper",
+  "editor.paperSizeA4": "A4 tiled",
+  "editor.paperSizeA3": "A3 (tile if needed)",
+  "editor.noOptionsSelected": "No options selected",
   "editor.generateDraftFirst": "Generate a draft first",
   "editor.draftFailed": "Draft failed",
   "form.options": "Options",
@@ -30,4 +34,9 @@ export const en = {
   "preview.reset": "Reset",
   "preview.noPreview": "No preview yet. Change a measurement to generate the draft.",
   "preview.unavailable": "Preview unavailable.",
+
+  "export.instructions": "Print at 100% / Actual size. Disable 'Fit to page'. Measure the 50mm mark with a ruler.",
+  "export.legend": "Legend: cut line = solid, stitch line = dashed",
+  "export.seamAllowanceOn": "On",
+  "export.seamAllowanceOff": "Off",
 };

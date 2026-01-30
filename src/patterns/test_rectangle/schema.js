@@ -1,6 +1,6 @@
 export const schema = {
   id: "test_rectangle",
-  name: "Test Rectangle",
+  name: { en: "Test Rectangle", ru: "Тестовый прямоугольник" },
   unit: "cm",
   fields: [
     {

@@ -36,6 +36,9 @@ export function svgExport(draft, measurementsSummary = []) {
   const meta = draft.meta || {};
   const summaryText = measurementsSummary.join(", ");
   const scaleInfo = `Units: ${meta.unit || "cm"} | Seam allowance: ${meta.seamAllowanceApplied ? "on" : "off"}`;
+  const calibrationSize = Units.fromMm(50, meta.unit || "cm");
+  const calibX = bounds.minX + 2;
+  const calibY = bounds.minY + 2 + calibrationSize;
 
   const annotationMarkup = renderAnnotations(draft.annotations);
 
@@ -53,6 +56,11 @@ export function svgExport(draft, measurementsSummary = []) {
   <rect x="${bounds.minX - padding}" y="${bounds.minY - padding}" width="${width}" height="${height}" fill="white" />
   ${pathMarkup}
   ${annotationMarkup}
+  <g id="calibration-50mm" stroke="#d11" stroke-width="0.4" fill="none">
+    <line x1="${calibX}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY}" />
+    <line x1="${calibX + calibrationSize}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY - calibrationSize}" />
+    <text x="${calibX}" y="${calibY + 1.2}" font-size="1.8" fill="#d11">50mm</text>
+  </g>
   <rect x="${bounds.minX + 1}" y="${bounds.minY + 1}" width="1" height="1" fill="none" stroke="#555" stroke-width="0.1" />
   <text x="${bounds.minX + 2}" y="${bounds.minY + height - 1}" font-size="2" fill="#333">${meta.title || "Pattern"}</text>
   <text x="${bounds.minX + 2}" y="${bounds.minY + height - 3}" font-size="1.6" fill="#555">${scaleInfo}</text>

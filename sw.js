@@ -1,5 +1,5 @@
 // Use relative URLs so the PWA cache works on GitHub Pages subpaths (/<repo>/)
-const CACHE_NAME = "lingerie-patterns-v2";
+const CACHE_NAME = "lingerie-patterns-v3";
 const ASSETS = [
   "./",
   "./index.html",
