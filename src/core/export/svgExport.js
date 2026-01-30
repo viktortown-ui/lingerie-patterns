@@ -34,11 +34,27 @@ function wrapText(text, maxCharsPerLine) {
   return lines;
 }
 
-function renderMultilineText({ x, y, lines, fontSize, fill, lineHeight }) {
+function wrapWithAutoSize(text, { maxChars, fontSize, minFontSize = 9, maxLines = 3 }) {
+  if (!text) return { lines: [], fontSize };
+  let nextFontSize = fontSize;
+  let nextMaxChars = maxChars;
+  let lines = wrapText(text, nextMaxChars);
+
+  while (lines.length > maxLines && nextFontSize > minFontSize) {
+    nextFontSize -= 1;
+    const scale = fontSize / nextFontSize;
+    nextMaxChars = Math.round(maxChars * scale);
+    lines = wrapText(text, nextMaxChars);
+  }
+
+  return { lines, fontSize: nextFontSize };
+}
+
+function renderMultilineText({ x, y, lines, fontSize, fill, lineHeightEm = 1.2 }) {
   if (!lines.length) return "";
   const tspans = lines
     .map((line, index) => {
-      const dy = index === 0 ? "0" : `${lineHeight}px`;
+      const dy = index === 0 ? "0" : `${lineHeightEm}em`;
       return `<tspan x="${x}" dy="${dy}">${line}</tspan>`;
     })
     .join("");
@@ -65,7 +81,7 @@ function renderAnnotations(annotations = [], { resolveText, labelFontSize }) {
       }
       if (anno.type === "label") {
         const text = resolveLabelText(anno.text, resolveText);
-        return `<text x="${anno.point.x}" y="${anno.point.y}" font-size="${labelFontSize}px" fill="#333">${text}</text>`;
+        return `<text x="${anno.point.x}" y="${anno.point.y}" font-size="${labelFontSize}px" fill="#111" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fff" stroke-width="1.2" stroke-linejoin="round">${text}</text>`;
       }
       return "";
     })
@@ -73,12 +89,15 @@ function renderAnnotations(annotations = [], { resolveText, labelFontSize }) {
 }
 
 export function svgExport(draft, measurementsSummary = [], options = {}) {
-  const paths = Object.values(draft.paths);
-  const bounds = mergeBounds(paths.map((path) => path.bounds()));
+  const pathEntries = Object.entries(draft.paths);
+  const paths = pathEntries.map(([, path]) => path);
+  const geometryBounds = mergeBounds(paths.map((path) => path.bounds()));
   const meta = draft.meta || {};
   const unit = meta.unit || "cm";
   const resolveText = options.resolveText;
   const labels = options.labels || {};
+  const mode = options.mode || "export";
+  const includeInfo = mode !== "preview";
 
   const marginLeft = Units.fromMm(10, unit);
   const marginRight = Units.fromMm(10, unit);
@@ -86,10 +105,10 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const marginBottom = Units.fromMm(35, unit);
 
   const exportBounds = {
-    minX: bounds.minX - marginLeft,
-    minY: bounds.minY - marginTop,
-    maxX: bounds.maxX + marginRight,
-    maxY: bounds.maxY + marginBottom,
+    minX: geometryBounds.minX - marginLeft,
+    minY: geometryBounds.minY - marginTop,
+    maxX: geometryBounds.maxX + marginRight,
+    maxY: geometryBounds.maxY + marginBottom,
   };
   const width = exportBounds.maxX - exportBounds.minX;
   const height = exportBounds.maxY - exportBounds.minY;
@@ -106,36 +125,49 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
 
   const infoFontSize = 12;
   const compactFontSize = 10;
-  const infoLineHeight = infoFontSize * 1.35;
-  const legendLineHeight = compactFontSize * 1.3;
+  const lineHeightEm = 1.2;
+
+  const hasSeamPaths = pathEntries.some(([name]) => name.toLowerCase().includes("seam"));
+  const seamAllowanceApplied = Boolean(meta.seamAllowanceApplied && hasSeamPaths);
 
   const titleText = resolveLabelText(meta.title, resolveText) || labels.patternTitle || "Pattern";
-  const titleLines = wrapText(titleText, 28);
+  const titleBlock = wrapWithAutoSize(titleText, { maxChars: 28, fontSize: infoFontSize, maxLines: 2 });
 
-  const summaryLines = wrapText(summaryText, 58);
-  const scaleLines = wrapText(scaleInfo, 58);
-  const legendText = labels.legendLines || "Cut line / Stitch line";
-  const legendLines = wrapText(legendText, 46);
+  const summaryBlock = wrapWithAutoSize(summaryText, {
+    maxChars: 58,
+    fontSize: infoFontSize,
+    maxLines: 3,
+    minFontSize: compactFontSize,
+  });
+  const scaleBlock = wrapWithAutoSize(scaleInfo, {
+    maxChars: 58,
+    fontSize: infoFontSize,
+    maxLines: 2,
+    minFontSize: compactFontSize,
+  });
+  const legendText = seamAllowanceApplied ? labels.legendLines || "Cut line / Stitch line" : "";
+  const legendBlock = wrapWithAutoSize(legendText, {
+    maxChars: 46,
+    fontSize: compactFontSize,
+    maxLines: 2,
+    minFontSize: 9,
+  });
 
-  const denseSummary = summaryLines.length > 2;
-  const summaryFontSize = denseSummary ? compactFontSize : infoFontSize;
-  const summaryLinesFinal = denseSummary ? wrapText(summaryText, 70) : summaryLines;
-
-  const denseScale = scaleLines.length > 2;
-  const scaleFontSize = denseScale ? compactFontSize : infoFontSize;
-  const scaleLinesFinal = denseScale ? wrapText(scaleInfo, 70) : scaleLines;
+  const summaryLinesFinal = summaryBlock.lines;
+  const scaleLinesFinal = scaleBlock.lines;
+  const titleLines = titleBlock.lines;
 
   const annotationMarkup = renderAnnotations(draft.annotations, {
     resolveText,
     labelFontSize: 12,
   });
 
-  const pathMarkup = paths
-    .map((path, index) => {
-      const name = Object.keys(draft.paths)[index];
+  const pathMarkup = pathEntries
+    .map(([name, path]) => {
       const isSeam = name.toLowerCase().includes("seam");
-      const strokeWidth = Units.fromMm(isSeam ? 0.35 : 0.6, unit);
-      const dashArray = isSeam
+      const seamStyle = seamAllowanceApplied && isSeam;
+      const strokeWidth = Units.fromMm(seamStyle ? 0.35 : 0.6, unit);
+      const dashArray = seamStyle
         ? ` stroke-dasharray="${Units.fromMm(3, unit)} ${Units.fromMm(2, unit)}"`
         : "";
       return `<path d="${path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${strokeWidth}"${dashArray} data-name="${name}" />`;
@@ -145,18 +177,21 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const infoX = exportBounds.minX + Units.fromMm(4, unit);
   const infoY = exportBounds.maxY - Units.fromMm(22, unit);
   const titleY = infoY - Units.fromMm(8, unit);
-  const scaleY = infoY + infoLineHeight * 0.2;
-  const summaryY = scaleY + infoLineHeight * (scaleLinesFinal.length + 0.6);
-  const legendY = summaryY + infoLineHeight * (summaryLinesFinal.length + 0.6);
+  const scaleBlockHeight = scaleBlock.fontSize * lineHeightEm * scaleLinesFinal.length;
+  const summaryBlockHeight = summaryBlock.fontSize * lineHeightEm * summaryLinesFinal.length;
+  const scaleY = infoY + infoFontSize * 0.2;
+  const summaryY = scaleY + scaleBlockHeight + infoFontSize * 0.6;
+  const legendY = summaryY + summaryBlockHeight + infoFontSize * 0.6;
 
-  const annotationLegend = renderMultilineText({
-    x: infoX,
-    y: legendY,
-    lines: legendLines,
-    fontSize: compactFontSize,
-    fill: "#555",
-    lineHeight: legendLineHeight,
-  });
+  const annotationLegend = includeInfo
+    ? renderMultilineText({
+        x: infoX,
+        y: legendY,
+        lines: legendBlock.lines,
+        fontSize: legendBlock.fontSize,
+        fill: "#555",
+      })
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${Units.toMm(width, unit)}mm" height="${Units.toMm(height, unit)}mm">
@@ -173,30 +208,39 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     <line x1="${calibX + calibrationSize}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY - calibrationSize}" />
     <text x="${calibX}" y="${calibY + Units.fromMm(2, unit)}" font-size="${infoFontSize}px" fill="#d11">${labels.calibration || "50mm"}</text>
   </g>
-  ${renderMultilineText({
-    x: infoX,
-    y: titleY,
-    lines: titleLines,
-    fontSize: infoFontSize,
-    fill: "#333",
-    lineHeight: infoLineHeight,
-  })}
-  ${renderMultilineText({
-    x: infoX,
-    y: scaleY,
-    lines: scaleLinesFinal,
-    fontSize: scaleFontSize,
-    fill: "#555",
-    lineHeight: infoLineHeight,
-  })}
-  ${renderMultilineText({
-    x: infoX,
-    y: summaryY,
-    lines: summaryLinesFinal,
-    fontSize: summaryFontSize,
-    fill: "#555",
-    lineHeight: infoLineHeight,
-  })}
+  ${
+    includeInfo
+      ? renderMultilineText({
+          x: infoX,
+          y: titleY,
+          lines: titleLines,
+          fontSize: titleBlock.fontSize,
+          fill: "#333",
+        })
+      : ""
+  }
+  ${
+    includeInfo
+      ? renderMultilineText({
+          x: infoX,
+          y: scaleY,
+          lines: scaleLinesFinal,
+          fontSize: scaleBlock.fontSize,
+          fill: "#555",
+        })
+      : ""
+  }
+  ${
+    includeInfo
+      ? renderMultilineText({
+          x: infoX,
+          y: summaryY,
+          lines: summaryLinesFinal,
+          fontSize: summaryBlock.fontSize,
+          fill: "#555",
+        })
+      : ""
+  }
   ${annotationLegend}
 </svg>`;
 }

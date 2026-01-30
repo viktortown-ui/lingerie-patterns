@@ -217,6 +217,7 @@ export function pdfExport(draft, options = {}) {
   const paper = PAPER_SIZES[options.paperSize] || PAPER_SIZES.A4;
   const info = options.info || {};
   const resolveText = options.resolveText;
+  const labels = options.labels || {};
   const pathEntries = Object.entries(draft.paths).map(([name, path]) => ({ name, path }));
   const paths = pathEntries.map(({ path }) => path);
   const bounds = mergeBounds(paths);
@@ -241,6 +242,12 @@ export function pdfExport(draft, options = {}) {
   const pages = [];
   const hasSeamPaths = pathEntries.some((entry) => entry.name.toLowerCase().includes("seam"));
   const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
+  const cutLineWidth = Units.toPtFromMm(0.6);
+  const seamLineWidth = Units.toPtFromMm(0.35);
+  const patternLabel = labels.patternLabel || "Pattern";
+  const generatedLabel = labels.generatedLabel || "Generated";
+  const optionsLabel = labels.optionsLabel || "Options";
+  const seamAllowanceLabel = labels.seamAllowanceLabel || "Seam allowance";
 
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
@@ -255,8 +262,10 @@ export function pdfExport(draft, options = {}) {
       const pathCommands = pathEntries
         .map((entry) => {
           const isSeam = entry.name.toLowerCase().includes("seam");
-          const dash = isSeam && seamAllowanceApplied ? "[3 2] 0 d" : "[] 0 d";
-          return [dash, pathToPdf(entry.path, unitScale)].join("\n");
+          const seamStyle = isSeam && seamAllowanceApplied;
+          const dash = seamStyle ? "[3 2] 0 d" : "[] 0 d";
+          const width = seamStyle ? `${seamLineWidth} w` : `${cutLineWidth} w`;
+          return [width, dash, pathToPdf(entry.path, unitScale)].join("\n");
         })
         .join("\n");
       const annotationCommands = annotationPaths(draft.annotations || [], unitScale);
@@ -280,10 +289,10 @@ export function pdfExport(draft, options = {}) {
 
       const infoLines = [];
       if (row === 0 && col === 0) {
-        if (info.moduleName) infoLines.push(`Pattern: ${info.moduleName}`);
-        if (info.generatedAt) infoLines.push(`Generated: ${info.generatedAt}`);
-        if (info.optionsSummary) infoLines.push(`Options: ${info.optionsSummary}`);
-        if (info.seamAllowance) infoLines.push(`Seam allowance: ${info.seamAllowance}`);
+        if (info.moduleName) infoLines.push(`${patternLabel}: ${info.moduleName}`);
+        if (info.generatedAt) infoLines.push(`${generatedLabel}: ${info.generatedAt}`);
+        if (info.optionsSummary) infoLines.push(`${optionsLabel}: ${info.optionsSummary}`);
+        if (info.seamAllowance) infoLines.push(`${seamAllowanceLabel}: ${info.seamAllowance}`);
       }
 
       const infoBlock = infoLines.length
@@ -328,7 +337,6 @@ export function pdfExport(draft, options = {}) {
         `1 0 0 -1 0 ${pageSizePt.height} cm`,
         `${marginPt} ${marginPt} ${contentWidthPt} ${contentHeightPt} re W n`,
         `1 0 0 1 ${marginPt - offsetPtX - minXPt} ${marginPt + offsetPtY + minYPt} cm`,
-        "0.5 w",
         "0 0 0 RG",
         pathCommands,
         annotationCommands,

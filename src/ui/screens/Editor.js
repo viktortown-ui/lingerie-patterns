@@ -191,6 +191,7 @@ export function Editor({
         seamAllowanceOff: t("export.seamAllowanceOff"),
         legendLines: t("export.legendShort"),
         calibration: t("export.calibrationMark"),
+        patternTitle: t("export.patternTitle"),
       },
     });
     const blob = new Blob([svg], { type: "image/svg+xml" });
@@ -234,6 +235,12 @@ export function Editor({
         seamAllowanceApplied: draft.meta?.seamAllowanceApplied,
         legendText: t("export.legend"),
         instructionText: t("export.instructions"),
+      },
+      labels: {
+        patternLabel: t("export.patternLabel"),
+        generatedLabel: t("export.generatedLabel"),
+        optionsLabel: t("export.optionsLabel"),
+        seamAllowanceLabel: t("export.seamAllowanceLabel"),
       },
     });
     const url = URL.createObjectURL(data);
