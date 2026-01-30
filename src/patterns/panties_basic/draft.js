@@ -43,7 +43,7 @@ export function draftPanties(measurements, options = {}) {
   const annotations = [
     grainline(new Point(hipWidth * 0.5, 2), new Point(hipWidth * 0.5, riseHeight - 2)),
     notch(new Point(hipWidth * 0.5, riseHeight)),
-    label(new Point(hipWidth * 0.2, riseHeight * 0.5), "Front")
+    label(new Point(hipWidth * 0.3, riseHeight * 0.5), { en: "Front", ru: "Перед" }),
   ];
 
   return {
@@ -51,7 +51,7 @@ export function draftPanties(measurements, options = {}) {
     annotations,
     meta: {
       unit: "cm",
-      title: "Panties Basic",
+      title: { en: "Panties Basic", ru: "Базовые трусики" },
       moduleId: "panties_basic",
       moduleVersion: "0.1.0",
       seamAllowanceApplied: seamAllowance > 0,

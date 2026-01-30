@@ -31,7 +31,7 @@ export function draftRectangle(measurements) {
     grainline(new Point(width * 0.5, 1), new Point(width * 0.5, height - 1)),
     notch(new Point(width * 0.25, 0)),
     notch(new Point(width * 0.75, height)),
-    label(new Point(width * 0.5, height * 0.5), "Panel"),
+    label(new Point(width * 0.5, height * 0.5), { en: "Panel", ru: "Панель" }),
   ];
 
   return {
@@ -39,7 +39,7 @@ export function draftRectangle(measurements) {
     annotations,
     meta: {
       unit: "cm",
-      title: "Test Rectangle",
+      title: { en: "Test Rectangle", ru: "Тестовый прямоугольник" },
       moduleId: "test_rectangle",
       moduleVersion: "0.1.0",
       seamAllowanceApplied: seamAllowance > 0,

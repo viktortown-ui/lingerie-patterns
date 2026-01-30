@@ -37,6 +37,10 @@ export const en = {
 
   "export.instructions": "Print at 100% / Actual size. Disable 'Fit to page'. Measure the 50mm mark with a ruler.",
   "export.legend": "Legend: cut line = solid, stitch line = dashed",
+  "export.legendShort": "Cut line / Stitch line",
+  "export.unitsLabel": "Units",
+  "export.seamAllowanceLabel": "Seam allowance",
+  "export.calibrationMark": "50mm",
   "export.seamAllowanceOn": "On",
   "export.seamAllowanceOff": "Off",
 };

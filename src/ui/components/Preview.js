@@ -1,6 +1,6 @@
 import { createEl, clearEl } from "../../core/utils/dom.js";
 import { svgExport } from "../../core/export/svgExport.js";
-import { t } from "../i18n/i18n.js";
+import { resolveText, t } from "../i18n/i18n.js";
 
 export function Preview({ getDraft, getSummary }) {
   const wrapper = createEl("div", { className: "preview" });
@@ -163,7 +163,17 @@ export function Preview({ getDraft, getSummary }) {
       return;
     }
 
-    const svgString = svgExport(draft, getSummary());
+    const svgString = svgExport(draft, getSummary(), {
+      resolveText,
+      labels: {
+        unitsLabel: t("export.unitsLabel"),
+        seamAllowanceLabel: t("export.seamAllowanceLabel"),
+        seamAllowanceOn: t("export.seamAllowanceOn"),
+        seamAllowanceOff: t("export.seamAllowanceOff"),
+        legendLines: t("export.legendShort"),
+        calibration: t("export.calibrationMark"),
+      },
+    });
     const container = createEl("div");
     container.innerHTML = svgString;
     const nextSvg = container.querySelector("svg");
@@ -181,6 +191,9 @@ export function Preview({ getDraft, getSummary }) {
 
     viewport.appendChild(nextSvg);
     svgEl = nextSvg;
+    svgEl.querySelectorAll("path,line,polyline,polygon").forEach((el) => {
+      el.setAttribute("vector-effect", "non-scaling-stroke");
+    });
 
     applyFit();
   };

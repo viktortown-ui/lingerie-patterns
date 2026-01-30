@@ -182,7 +182,17 @@ export function Editor({
 
   exportSvgButton.addEventListener("click", () => {
     if (!draft) return toast.show(t("editor.generateDraftFirst"));
-    const svg = svgExport(draft, measurementsSummary());
+    const svg = svgExport(draft, measurementsSummary(), {
+      resolveText,
+      labels: {
+        unitsLabel: t("export.unitsLabel"),
+        seamAllowanceLabel: t("export.seamAllowanceLabel"),
+        seamAllowanceOn: t("export.seamAllowanceOn"),
+        seamAllowanceOff: t("export.seamAllowanceOff"),
+        legendLines: t("export.legendShort"),
+        calibration: t("export.calibrationMark"),
+      },
+    });
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const link = createEl("a", { attrs: { href: url, download: `${module.id}.svg` } });
@@ -215,6 +225,7 @@ export function Editor({
     const { data } = pdfExport(draft, {
       marginMm: 10,
       paperSize: state.paperSize || "A4",
+      resolveText,
       info: {
         moduleName: resolveText(module.name),
         generatedAt: new Date().toLocaleString(),
