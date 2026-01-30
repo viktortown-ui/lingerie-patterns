@@ -265,6 +265,8 @@ button:disabled {
 }
 
 .preview-label-toggle {
+  display: inline-flex;
+  gap: 8px;
   font-size: 0.85rem;
   color: var(--muted);
 }
