@@ -32,6 +32,7 @@ export const ru = {
   "preview.zoomIn": "Приблизить",
   "preview.zoomOut": "Отдалить",
   "preview.reset": "Сброс",
+  "preview.showLabels": "Показывать подписи",
   "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
   "preview.unavailable": "Предпросмотр недоступен.",
 

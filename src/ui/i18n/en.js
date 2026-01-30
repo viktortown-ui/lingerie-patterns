@@ -32,6 +32,7 @@ export const en = {
   "preview.zoomIn": "Zoom in",
   "preview.zoomOut": "Zoom out",
   "preview.reset": "Reset",
+  "preview.showLabels": "Show labels",
   "preview.noPreview": "No preview yet. Change a measurement to generate the draft.",
   "preview.unavailable": "Preview unavailable.",
 

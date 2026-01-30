@@ -27,6 +27,11 @@ export function Preview({ getDraft, getSummary }) {
     attrs: { type: "button" },
   });
   const zoomLabel = createEl("span", { className: "preview-zoom-label", text: "100%" });
+  const labelToggle = createEl("label", { className: "toggle preview-label-toggle" });
+  const labelCheckbox = createEl("input", { attrs: { type: "checkbox" } });
+  const labelText = createEl("span", { text: t("preview.showLabels") });
+  labelCheckbox.checked = true;
+  labelToggle.append(labelCheckbox, labelText);
 
   const viewport = createEl("div", { className: "preview-viewport" });
   const infoPanel = createEl("div", { className: "preview-info" });
@@ -35,7 +40,7 @@ export function Preview({ getDraft, getSummary }) {
   const infoSummary = createEl("div", { className: "preview-info-line" });
   const infoLegend = createEl("div", { className: "preview-info-line" });
 
-  toolbar.append(fitButton, zoomOutButton, zoomInButton, resetButton, zoomLabel);
+  toolbar.append(fitButton, zoomOutButton, zoomInButton, resetButton, zoomLabel, labelToggle);
   infoPanel.append(infoTitle, infoScale, infoSummary, infoLegend);
   wrapper.append(toolbar, viewport, infoPanel);
 
@@ -46,6 +51,9 @@ export function Preview({ getDraft, getSummary }) {
   let zoomFactor = 1;
   let fitMode = true;
   const maxFitZoom = 1;
+  const minZoom = 0.25;
+  const maxZoom = 3;
+  let showLabels = true;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -83,13 +91,13 @@ export function Preview({ getDraft, getSummary }) {
 
   const setZoomFactor = (next) => {
     fitMode = false;
-    zoomFactor = clamp(next, 0.1, 10);
+    zoomFactor = clamp(next, minZoom, maxZoom);
     applyZoom();
   };
 
   const applyFit = () => {
     fitMode = true;
-    zoomFactor = clamp(Math.min(getFitScale(), maxFitZoom), 0.1, 10);
+    zoomFactor = clamp(Math.min(getFitScale(), maxFitZoom), minZoom, maxZoom);
     applyZoom();
   };
 
@@ -102,6 +110,10 @@ export function Preview({ getDraft, getSummary }) {
   resetButton.addEventListener("click", resetZoom);
   zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
   zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
+  labelCheckbox.addEventListener("change", () => {
+    showLabels = labelCheckbox.checked;
+    render();
+  });
 
   // Ctrl/⌘ + wheel zoom (keeps normal scroll otherwise)
   viewport.addEventListener(
@@ -168,12 +180,15 @@ export function Preview({ getDraft, getSummary }) {
     if (!draft) {
       viewport.textContent = t("preview.noPreview");
       infoPanel.hidden = true;
+      labelCheckbox.disabled = true;
       return;
     }
+    labelCheckbox.disabled = false;
 
     const svgString = svgExport(draft, getSummary(), {
       resolveText,
       mode: "preview",
+      showLabels,
       labels: {
         unitsLabel: t("export.unitsLabel"),
         seamAllowanceLabel: t("export.seamAllowanceLabel"),
@@ -222,7 +237,11 @@ export function Preview({ getDraft, getSummary }) {
     infoLegend.hidden = !seamAllowanceApplied;
     infoPanel.hidden = false;
 
-    applyFit();
+    if (fitMode) {
+      applyFit();
+    } else {
+      applyZoom();
+    }
   };
 
   render();

@@ -52,6 +52,14 @@ body {
   grid-column: 1 / -1;
 }
 
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .main {
   flex: 1;
   display: grid;
@@ -171,6 +179,8 @@ button:disabled {
   min-height: 300px;
   overflow: auto;
   padding-bottom: 32px;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .preview-info {
@@ -178,6 +188,7 @@ button:disabled {
   gap: 4px;
   font-size: 0.85rem;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .preview-info-title {
@@ -251,4 +262,38 @@ button:disabled {
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+
+.preview-label-toggle {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .preview {
+    min-height: 320px;
+  }
+
+  .preview-toolbar {
+    gap: 6px;
+  }
+
+  .preview-viewport {
+    min-height: 240px;
+  }
+
+  .actions {
+    position: static;
+    padding-top: 0;
+  }
 }
