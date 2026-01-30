@@ -1,24 +1,34 @@
 const STORAGE_KEY = "lingerie-pattern-state";
 
+function detectLanguage() {
+  const lang = navigator?.language?.toLowerCase() || "";
+  return lang.startsWith("ru") ? "ru" : "en";
+}
+
+function defaultState() {
+  return {
+    profiles: [],
+    lastProfileId: null,
+    selectedModuleId: null,
+    theme: null,
+    language: detectLanguage(),
+  };
+}
+
 export function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return {
-      profiles: [],
-      lastProfileId: null,
-      selectedModuleId: null,
-      theme: null,
-    };
+    return defaultState();
   }
   try {
-    return JSON.parse(raw);
-  } catch (error) {
+    const parsed = JSON.parse(raw);
     return {
-      profiles: [],
-      lastProfileId: null,
-      selectedModuleId: null,
-      theme: null,
+      ...defaultState(),
+      ...parsed,
+      language: parsed.language || defaultState().language,
     };
+  } catch (error) {
+    return defaultState();
   }
 }
 
