@@ -50,7 +50,7 @@ function wrapWithAutoSize(text, { maxChars, fontSize, minFontSize = 9, maxLines 
   return { lines, fontSize: nextFontSize };
 }
 
-function renderMultilineText({ x, y, lines, fontSize, fill, lineHeightEm = 1.2 }) {
+function renderMultilineText({ x, y, lines, fontSize, fill, lineHeightEm = 1.2, formatFontSize }) {
   if (!lines.length) return "";
   const tspans = lines
     .map((line, index) => {
@@ -58,7 +58,7 @@ function renderMultilineText({ x, y, lines, fontSize, fill, lineHeightEm = 1.2 }
       return `<tspan x="${x}" dy="${dy}">${line}</tspan>`;
     })
     .join("");
-  return `<text x="${x}" y="${y}" font-size="${fontSize}px" fill="${fill}">${tspans}</text>`;
+  return `<text x="${x}" y="${y}" font-size="${formatFontSize(fontSize)}" fill="${fill}">${tspans}</text>`;
 }
 
 function resolveLabelText(value, resolveText) {
@@ -70,18 +70,39 @@ function resolveLabelText(value, resolveText) {
   return "";
 }
 
-function renderAnnotations(annotations = [], { resolveText, labelFontSize }) {
+function renderAnnotations(
+  annotations = [],
+  {
+    resolveText,
+    labelFontSize,
+    labelStrokeWidth,
+    grainlineStrokeWidth,
+    notchRadius,
+    showLabels,
+    formatFontSize,
+    formatLength,
+  }
+) {
   return annotations
     .map((anno) => {
       if (anno.type === "grainline") {
-        return `<line x1="${anno.start.x}" y1="${anno.start.y}" x2="${anno.end.x}" y2="${anno.end.y}" stroke="#333" stroke-width="0.2" marker-end="url(#arrow)" />`;
+        return `<line x1="${anno.start.x}" y1="${anno.start.y}" x2="${anno.end.x}" y2="${anno.end.y}" stroke="#333" stroke-width="${formatLength(
+          grainlineStrokeWidth
+        )}" marker-end="url(#arrow)" />`;
       }
       if (anno.type === "notch") {
-        return `<circle cx="${anno.point.x}" cy="${anno.point.y}" r="0.2" fill="#333" />`;
+        return `<circle cx="${anno.point.x}" cy="${anno.point.y}" r="${formatLength(
+          notchRadius
+        )}" fill="#333" />`;
       }
       if (anno.type === "label") {
+        if (!showLabels) return "";
         const text = resolveLabelText(anno.text, resolveText);
-        return `<text x="${anno.point.x}" y="${anno.point.y}" font-size="${labelFontSize}px" fill="#111" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fff" stroke-width="1.2" stroke-linejoin="round">${text}</text>`;
+        return `<text x="${anno.point.x}" y="${anno.point.y}" font-size="${formatFontSize(
+          labelFontSize
+        )}" fill="#111" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fff" stroke-width="${formatLength(
+          labelStrokeWidth
+        )}" stroke-linejoin="round">${text}</text>`;
       }
       return "";
     })
@@ -98,6 +119,17 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const labels = options.labels || {};
   const mode = options.mode || "export";
   const includeInfo = mode !== "preview";
+  const isPreview = mode === "preview";
+  const showLabels = options.showLabels ?? true;
+
+  const formatFontSize = (value) =>
+    isPreview ? `${value}px` : `${Units.toMm(value, unit)}mm`;
+  const formatLength = (value) =>
+    isPreview ? `${value}px` : `${Units.toMm(value, unit)}mm`;
+  const formatDashArray = (dash, gap) =>
+    isPreview
+      ? `${formatLength(dash)} ${formatLength(gap)}`
+      : `${Units.toMm(dash, unit)}mm ${Units.toMm(gap, unit)}mm`;
 
   const marginLeft = Units.fromMm(10, unit);
   const marginRight = Units.fromMm(10, unit);
@@ -123,8 +155,8 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const calibX = exportBounds.minX + Units.fromMm(4, unit);
   const calibY = exportBounds.minY + Units.fromMm(4, unit) + calibrationSize;
 
-  const infoFontSize = 12;
-  const compactFontSize = 10;
+  const infoFontSize = isPreview ? 12 : Units.fromMm(3.2, unit);
+  const compactFontSize = isPreview ? 10 : Units.fromMm(2.6, unit);
   const lineHeightEm = 1.2;
 
   const hasSeamPaths = pathEntries.some(([name]) => name.toLowerCase().includes("seam"));
@@ -159,18 +191,26 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
 
   const annotationMarkup = renderAnnotations(draft.annotations, {
     resolveText,
-    labelFontSize: 12,
+    labelFontSize: isPreview ? 12 : Units.fromMm(3, unit),
+    labelStrokeWidth: isPreview ? 2 : Units.fromMm(0.3, unit),
+    grainlineStrokeWidth: isPreview ? 1 : Units.fromMm(0.2, unit),
+    notchRadius: isPreview ? 2 : Units.fromMm(0.2, unit),
+    showLabels,
+    formatFontSize,
+    formatLength,
   });
 
   const pathMarkup = pathEntries
     .map(([name, path]) => {
       const isSeam = name.toLowerCase().includes("seam");
       const seamStyle = seamAllowanceApplied && isSeam;
-      const strokeWidth = Units.fromMm(seamStyle ? 0.35 : 0.6, unit);
+      const strokeWidth = isPreview ? (seamStyle ? 1 : 1.5) : Units.fromMm(seamStyle ? 0.35 : 0.6, unit);
       const dashArray = seamStyle
-        ? ` stroke-dasharray="${Units.fromMm(3, unit)} ${Units.fromMm(2, unit)}"`
+        ? ` stroke-dasharray="${formatDashArray(isPreview ? 6 : Units.fromMm(3, unit), isPreview ? 4 : Units.fromMm(2, unit))}"`
         : "";
-      return `<path d="${path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${strokeWidth}"${dashArray} data-name="${name}" />`;
+      return `<path d="${path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${formatLength(
+        strokeWidth
+      )}"${dashArray} data-name="${name}" />`;
     })
     .join("\n");
 
@@ -190,6 +230,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
         lines: legendBlock.lines,
         fontSize: legendBlock.fontSize,
         fill: "#555",
+        formatFontSize,
       })
     : "";
 
@@ -203,10 +244,14 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   <rect x="${exportBounds.minX}" y="${exportBounds.minY}" width="${width}" height="${height}" fill="white" />
   ${pathMarkup}
   ${annotationMarkup}
-  <g id="calibration-50mm" stroke="#d11" stroke-width="${Units.fromMm(0.4, unit)}" fill="none">
+  <g id="calibration-50mm" stroke="#d11" stroke-width="${formatLength(
+    isPreview ? 1 : Units.fromMm(0.4, unit)
+  )}" fill="none">
     <line x1="${calibX}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY}" />
     <line x1="${calibX + calibrationSize}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY - calibrationSize}" />
-    <text x="${calibX}" y="${calibY + Units.fromMm(2, unit)}" font-size="${infoFontSize}px" fill="#d11">${labels.calibration || "50mm"}</text>
+    <text x="${calibX}" y="${calibY + Units.fromMm(2, unit)}" font-size="${formatFontSize(
+      infoFontSize
+    )}" fill="#d11">${labels.calibration || "50mm"}</text>
   </g>
   ${
     includeInfo
@@ -216,6 +261,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: titleLines,
           fontSize: titleBlock.fontSize,
           fill: "#333",
+          formatFontSize,
         })
       : ""
   }
@@ -227,6 +273,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: scaleLinesFinal,
           fontSize: scaleBlock.fontSize,
           fill: "#555",
+          formatFontSize,
         })
       : ""
   }
@@ -238,6 +285,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: summaryLinesFinal,
           fontSize: summaryBlock.fontSize,
           fill: "#555",
+          formatFontSize,
         })
       : ""
   }
