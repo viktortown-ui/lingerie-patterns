@@ -5,24 +5,27 @@ export const schema = {
   fields: [
     {
       key: "width_cm",
-      label: "Width",
-      description: "Rectangle width.",
+      label: { en: "Width", ru: "Ширина" },
+      description: { en: "Rectangle width.", ru: "Ширина прямоугольника." },
       min: 5,
       max: 80,
       step: 0.5,
     },
     {
       key: "height_cm",
-      label: "Height",
-      description: "Rectangle height.",
+      label: { en: "Height", ru: "Высота" },
+      description: { en: "Rectangle height.", ru: "Высота прямоугольника." },
       min: 5,
       max: 120,
       step: 0.5,
     },
     {
       key: "seam_allowance_cm",
-      label: "Seam allowance",
-      description: "Additional margin added around the panel.",
+      label: { en: "Seam allowance", ru: "Припуск на шов" },
+      description: {
+        en: "Additional margin added around the panel.",
+        ru: "Дополнительный припуск по периметру детали.",
+      },
       min: 0,
       max: 2,
       step: 0.1,

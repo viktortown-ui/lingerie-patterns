@@ -18,6 +18,9 @@
 - Use **Load** to recall saved measurements.
 - The last used profile loads automatically.
 
+## Language
+Use the **RU/EN** selector in the top bar to switch the interface language. Your choice is saved in your browser.
+
 ## Theme
 Use **Toggle theme** in the top bar to switch between light and dark modes. The choice is saved in your browser.
 

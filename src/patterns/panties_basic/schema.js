@@ -5,32 +5,44 @@ export const schema = {
   fields: [
     {
       key: "waist",
-      label: "Waist circumference",
-      description: "Measure around the natural waist.",
+      label: { en: "Waist circumference", ru: "Обхват талии" },
+      description: {
+        en: "Measure around the natural waist.",
+        ru: "Измерьте окружность по линии талии.",
+      },
       min: 50,
       max: 120,
       step: 0.5,
     },
     {
       key: "hip",
-      label: "Hip circumference",
-      description: "Measure around the fullest part of the hips.",
+      label: { en: "Hip circumference", ru: "Обхват бёдер" },
+      description: {
+        en: "Measure around the fullest part of the hips.",
+        ru: "Измерьте окружность по самой выступающей части бёдер.",
+      },
       min: 70,
       max: 140,
       step: 0.5,
     },
     {
       key: "rise",
-      label: "Rise",
-      description: "Vertical distance from waist to crotch (front).",
+      label: { en: "Rise", ru: "Высота сидения" },
+      description: {
+        en: "Vertical distance from waist to crotch (front).",
+        ru: "Вертикальное расстояние от талии до паховой точки спереди.",
+      },
       min: 18,
       max: 35,
       step: 0.5,
     },
     {
       key: "legOpening",
-      label: "Leg opening",
-      description: "Circumference around the leg opening.",
+      label: { en: "Leg opening", ru: "Обхват по вырезу ноги" },
+      description: {
+        en: "Circumference around the leg opening.",
+        ru: "Окружность по линии выреза ноги.",
+      },
       min: 40,
       max: 80,
       step: 0.5,
@@ -45,20 +57,24 @@ export const schema = {
   options: [
     {
       key: "style",
-      label: "Style",
-      description: "Base style for the panty leg curve.",
-      choices: [
-        { label: "Classic", value: "classic" },
-      ],
+      label: { en: "Style", ru: "Стиль" },
+      description: {
+        en: "Base style for the panty leg curve.",
+        ru: "Базовый стиль линии выреза ноги.",
+      },
+      choices: [{ label: { en: "Classic", ru: "Классический" }, value: "classic" }],
       default: "classic",
     },
     {
       key: "seamAllowance",
-      label: "Seam allowance",
-      description: "Add a default seam allowance around the panel.",
+      label: { en: "Seam allowance", ru: "Припуск на шов" },
+      description: {
+        en: "Add a default seam allowance around the panel.",
+        ru: "Добавить припуск на шов вокруг детали.",
+      },
       choices: [
-        { label: "Off", value: "off" },
-        { label: "On", value: "on" },
+        { label: { en: "Off", ru: "Выкл." }, value: "off" },
+        { label: { en: "On", ru: "Вкл." }, value: "on" },
       ],
       default: "off",
     },

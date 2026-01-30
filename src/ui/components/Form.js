@@ -1,5 +1,6 @@
 import { createEl } from "../../core/utils/dom.js";
 import { validateSchema } from "../../core/validate/validate.js";
+import { resolveText, t } from "../i18n/i18n.js";
 
 export function Form({ schema, values, onChange, onSubmit }) {
   const form = createEl("form", { className: "form" });
@@ -9,7 +10,7 @@ export function Form({ schema, values, onChange, onSubmit }) {
   const renderFields = () => {
     schema.fields.forEach((field) => {
       const group = createEl("div", { className: "form-group" });
-      const label = createEl("label", { text: field.label });
+      const label = createEl("label", { text: resolveText(field.label) });
       const input = createEl("input", {
         attrs: {
           type: "number",
@@ -19,7 +20,10 @@ export function Form({ schema, values, onChange, onSubmit }) {
           value: values[field.key] ?? "",
         },
       });
-      const helper = createEl("div", { className: "helper-text", text: field.description || "" });
+      const helper = createEl("div", {
+        className: "helper-text",
+        text: resolveText(field.description || ""),
+      });
       const error = createEl("div", { className: "error" });
 
       input.addEventListener("input", (event) => {
@@ -35,23 +39,29 @@ export function Form({ schema, values, onChange, onSubmit }) {
     });
 
     if (schema.options?.length) {
-      const optionTitle = createEl("h4", { text: "Options" });
+      const optionTitle = createEl("h4", { text: t("form.options") });
       form.appendChild(optionTitle);
 
       schema.options.forEach((option) => {
         const group = createEl("div", { className: "form-group" });
-        const label = createEl("label", { text: option.label });
+        const label = createEl("label", { text: resolveText(option.label) });
         const select = createEl("select", {
           attrs: { value: values[option.key] ?? option.default },
         });
         option.choices.forEach((choice) => {
-          const opt = createEl("option", { text: choice.label, attrs: { value: choice.value } });
+          const opt = createEl("option", {
+            text: resolveText(choice.label),
+            attrs: { value: choice.value },
+          });
           if (values[option.key] === choice.value) {
             opt.selected = true;
           }
           select.appendChild(opt);
         });
-        const helper = createEl("div", { className: "helper-text", text: option.description || "" });
+        const helper = createEl("div", {
+          className: "helper-text",
+          text: resolveText(option.description || ""),
+        });
 
         select.addEventListener("change", (event) => {
           values[option.key] = event.target.value;

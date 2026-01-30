@@ -7,13 +7,14 @@ import { uid } from "../../core/utils/id.js";
 import { Form } from "../components/Form.js";
 import { Preview } from "../components/Preview.js";
 import { Toast } from "../components/Toast.js";
+import { resolveText, t } from "../i18n/i18n.js";
 import { toggleTheme } from "../styles/theme.js";
 import { upsertProfile, deleteProfile } from "../state/store.js";
 
-export function Editor({ moduleId, state, onBack, onThemeToggle }) {
+export function Editor({ moduleId, language, state, onBack, onThemeToggle, onLanguageToggle }) {
   const module = getModule(moduleId);
   if (!module) {
-    const fallback = createEl("div", { className: "card", text: "Module not found." });
+    const fallback = createEl("div", { className: "card", text: t("editor.moduleNotFound") });
     return fallback;
   }
 
@@ -21,19 +22,34 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
   const sidebar = createEl("div", { className: "card" });
   const previewCard = createEl("div", { className: "card" });
   const header = createEl("div", { className: "topbar" });
-  const backButton = createEl("button", { className: "secondary", text: "Back" });
-  const themeButton = createEl("button", { className: "secondary", text: "Toggle theme" });
+  const backButton = createEl("button", { className: "secondary", text: t("editor.back") });
+  const themeButton = createEl("button", { className: "secondary", text: t("home.toggleTheme") });
+  const actions = createEl("div", { className: "topbar-actions" });
+  const languageLabel = createEl("span", { className: "muted", text: t("home.language") });
+  const languageSelect = createEl("select", { attrs: { value: language } });
+  [
+    { value: "ru", label: "RU" },
+    { value: "en", label: "EN" },
+  ].forEach((option) => {
+    const opt = createEl("option", { text: option.label, attrs: { value: option.value } });
+    if (language === option.value) opt.selected = true;
+    languageSelect.appendChild(opt);
+  });
   // Separate title nodes: a DOM node can't live in two places at once.
-  const headerTitle = createEl("h2", { text: module.name });
-  const sidebarTitle = createEl("h3", { text: "Measurements" });
+  const headerTitle = createEl("h2", { text: resolveText(module.name) });
+  const sidebarTitle = createEl("h3", { text: t("editor.measurements") });
 
   backButton.addEventListener("click", onBack);
   themeButton.addEventListener("click", () => {
     const theme = toggleTheme();
     onThemeToggle(theme);
   });
+  languageSelect.addEventListener("change", (event) => {
+    onLanguageToggle(event.target.value);
+  });
 
-  header.append(backButton, headerTitle, themeButton);
+  actions.append(languageLabel, languageSelect, themeButton);
+  header.append(backButton, headerTitle, actions);
 
   const formValues = { ...module.schema.defaults };
   const lastProfile = state.profiles.find((profile) => profile.id === state.lastProfileId);
@@ -50,7 +66,9 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
   let errors = validateSchema(module.schema, formValues);
 
   const measurementsSummary = () =>
-    module.schema.fields.map((field) => `${field.label}: ${formValues[field.key]}${module.schema.unit}`);
+    module.schema.fields.map(
+      (field) => `${resolveText(field.label)}: ${formValues[field.key]}${module.schema.unit}`
+    );
 
   const preview = Preview({
     getDraft: () => draft,
@@ -71,7 +89,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
       draft = module.draft(values, optionValues);
       preview.render();
     } catch (error) {
-      toast.show(error.message || "Draft failed");
+      toast.show(error.message || t("editor.draftFailed"));
     }
   };
 
@@ -84,7 +102,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
     },
   });
 
-  const profileTitle = createEl("h4", { text: "Profiles" });
+  const profileTitle = createEl("h4", { text: t("editor.profiles") });
   const profileList = createEl("div", { className: "profile-list" });
 
   const renderProfiles = () => {
@@ -93,9 +111,9 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
       const item = createEl("div", { className: "profile-item" });
       const info = createEl("div", { className: "summary" });
       info.textContent = `${profile.name} • ${new Date(profile.updatedAt).toLocaleString()}`;
-      const actions = createEl("div");
-      const loadBtn = createEl("button", { className: "secondary", text: "Load" });
-      const deleteBtn = createEl("button", { className: "secondary", text: "Delete" });
+      const actionsRow = createEl("div");
+      const loadBtn = createEl("button", { className: "secondary", text: t("editor.load") });
+      const deleteBtn = createEl("button", { className: "secondary", text: t("editor.delete") });
       loadBtn.addEventListener("click", () => {
         Object.assign(formValues, profile.measurements);
         Object.assign(optionValues, profile.options);
@@ -103,21 +121,21 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
         form.setValues(formState);
         renderProfiles();
         handleChange(formState, validateSchema(module.schema, formState));
-        toast.show("Profile loaded");
+        toast.show(t("editor.profileLoaded"));
       });
       deleteBtn.addEventListener("click", () => {
         deleteProfile(state, profile.id);
         renderProfiles();
       });
-      actions.append(loadBtn, deleteBtn);
-      item.append(info, actions);
+      actionsRow.append(loadBtn, deleteBtn);
+      item.append(info, actionsRow);
       profileList.appendChild(item);
     });
   };
 
-  const saveProfileButton = createEl("button", { text: "Save profile" });
+  const saveProfileButton = createEl("button", { text: t("editor.saveProfile") });
   saveProfileButton.addEventListener("click", () => {
-    const name = prompt("Profile name");
+    const name = prompt(t("editor.profileNamePrompt"));
     if (!name) return;
     const profile = {
       id: uid("profile"),
@@ -128,17 +146,17 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
     };
     upsertProfile(state, profile);
     renderProfiles();
-    toast.show("Profile saved");
+    toast.show(t("editor.profileSaved"));
   });
 
   renderProfiles();
 
   const actionBar = createEl("div", { className: "actions" });
-  const exportSvgButton = createEl("button", { text: "Download SVG" });
-  const exportPdfButton = createEl("button", { text: "Download PDF (A4)" });
+  const exportSvgButton = createEl("button", { text: t("editor.downloadSvg") });
+  const exportPdfButton = createEl("button", { text: t("editor.downloadPdf") });
 
   exportSvgButton.addEventListener("click", () => {
-    if (!draft) return toast.show("Generate a draft first");
+    if (!draft) return toast.show(t("editor.generateDraftFirst"));
     const svg = svgExport(draft, measurementsSummary());
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
@@ -148,7 +166,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
   });
 
   exportPdfButton.addEventListener("click", () => {
-    if (!draft) return toast.show("Generate a draft first");
+    if (!draft) return toast.show(t("editor.generateDraftFirst"));
     const { data } = pdfExport(draft, { marginMm: 10 });
     const url = URL.createObjectURL(data);
     const link = createEl("a", { attrs: { href: url, download: `${module.id}.pdf` } });

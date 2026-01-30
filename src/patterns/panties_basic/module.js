@@ -4,8 +4,8 @@ import { draftPanties } from "./draft.js";
 
 const module = new PatternModule({
   id: "panties_basic",
-  name: "Panties Basic",
-  category: "Bottoms",
+  name: "module.panties_basic.name",
+  category: "module.panties_basic.category",
   version: "0.1.0",
   schema,
   draft: draftPanties,
