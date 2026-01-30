@@ -10,6 +10,17 @@ export function getLocale() {
 
 export function setLocale(nextLocale) {
   locale = dictionaries[nextLocale] ? nextLocale : "en";
+  try {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+      document.documentElement.dataset.locale = locale;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("localechange", { detail: locale }));
+    }
+  } catch (_) {
+    // ignore
+  }
   return locale;
 }
 

@@ -44,9 +44,9 @@ export function Editor({ moduleId, language, state, onBack, onThemeToggle, onLan
     const theme = toggleTheme();
     onThemeToggle(theme);
   });
-  languageSelect.addEventListener("change", (event) => {
-    onLanguageToggle(event.target.value);
-  });
+  const handleLang = (event) => onLanguageToggle(String(event.target.value));
+  languageSelect.addEventListener("change", handleLang);
+  languageSelect.addEventListener("input", handleLang);
 
   actions.append(languageLabel, languageSelect, themeButton);
   header.append(backButton, headerTitle, actions);

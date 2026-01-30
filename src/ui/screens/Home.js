@@ -22,9 +22,9 @@ export function Home({ modules, language, onSelect, onThemeToggle, onLanguageTog
   });
   const themeButton = createEl("button", { className: "secondary", text: t("home.toggleTheme") });
 
-  languageSelect.addEventListener("change", (event) => {
-    onLanguageToggle(event.target.value);
-  });
+  const handleLang = (event) => onLanguageToggle(String(event.target.value));
+  languageSelect.addEventListener("change", handleLang);
+  languageSelect.addEventListener("input", handleLang);
 
   themeButton.addEventListener("click", () => {
     const theme = toggleTheme();

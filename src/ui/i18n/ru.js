@@ -23,4 +23,11 @@ export const ru = {
   "module.panties_basic.category": "Низ",
   "module.test_rectangle.name": "Тестовый прямоугольник",
   "module.test_rectangle.category": "Тест",
+
+  "preview.fit": "Вписать",
+  "preview.zoomIn": "Приблизить",
+  "preview.zoomOut": "Отдалить",
+  "preview.reset": "Сброс",
+  "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
+  "preview.unavailable": "Предпросмотр недоступен.",
 };

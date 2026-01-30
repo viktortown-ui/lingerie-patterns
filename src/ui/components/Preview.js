@@ -1,134 +1,170 @@
 import { createEl, clearEl } from "../../core/utils/dom.js";
 import { svgExport } from "../../core/export/svgExport.js";
+import { t } from "../i18n/i18n.js";
 
 export function Preview({ getDraft, getSummary }) {
   const wrapper = createEl("div", { className: "preview" });
+
   const toolbar = createEl("div", { className: "preview-toolbar" });
   const fitButton = createEl("button", {
     className: "secondary",
-    type: "button",
-    textContent: "Fit",
+    text: t("preview.fit"),
+    attrs: { type: "button" },
   });
   const zoomOutButton = createEl("button", {
     className: "secondary",
-    type: "button",
-    textContent: "-",
+    text: "−",
+    attrs: { type: "button", title: t("preview.zoomOut") },
   });
   const zoomInButton = createEl("button", {
     className: "secondary",
-    type: "button",
-    textContent: "+",
+    text: "+",
+    attrs: { type: "button", title: t("preview.zoomIn") },
   });
-  const zoomLabel = createEl("span", {
-    className: "preview-zoom-label",
-    textContent: "100%",
+  const resetButton = createEl("button", {
+    className: "secondary",
+    text: t("preview.reset"),
+    attrs: { type: "button" },
   });
+  const zoomLabel = createEl("span", { className: "preview-zoom-label", text: "100%" });
+
   const viewport = createEl("div", { className: "preview-viewport" });
 
-  toolbar.append(fitButton, zoomOutButton, zoomInButton, zoomLabel);
+  toolbar.append(fitButton, zoomOutButton, zoomInButton, resetButton, zoomLabel);
   wrapper.append(toolbar, viewport);
 
   let svgEl = null;
   let viewBoxSize = null;
-  let zoomMode = "fit";
-  let manualZoom = 1;
+
+  // Zoom is relative to "fit" scale: 1.0 = fit
+  let zoomFactor = 1;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-  const updateZoomLabel = (scale) => {
-    zoomLabel.textContent = `${Math.round(scale * 100)}%`;
+  const updateZoomLabel = () => {
+    zoomLabel.textContent = `${Math.round(zoomFactor * 100)}%`;
   };
 
   const parseViewBox = (svg) => {
     const viewBox = svg.getAttribute("viewBox");
     if (viewBox) {
       const [, , width, height] = viewBox.split(/\s+/).map(Number);
-      if (Number.isFinite(width) && Number.isFinite(height)) {
-        return { width, height };
-      }
-    }
-    const widthAttr = parseFloat(svg.getAttribute("width"));
-    const heightAttr = parseFloat(svg.getAttribute("height"));
-    if (Number.isFinite(widthAttr) && Number.isFinite(heightAttr)) {
-      return { width: widthAttr, height: heightAttr };
+      if (Number.isFinite(width) && Number.isFinite(height)) return { width, height };
     }
     return null;
   };
 
   const getFitScale = () => {
-    if (!viewBoxSize || !viewport) {
-      return 1;
-    }
-    const { clientWidth, clientHeight } = viewport;
-    if (!clientWidth || !clientHeight) {
-      return 1;
-    }
-    return Math.min(
-      clientWidth / viewBoxSize.width,
-      clientHeight / viewBoxSize.height,
-    );
+    if (!viewBoxSize) return 1;
+    const w = viewport.clientWidth || 1;
+    const h = viewport.clientHeight || 1;
+    return Math.min(w / viewBoxSize.width, h / viewBoxSize.height);
   };
 
   const applyZoom = () => {
-    if (!svgEl || !viewBoxSize) {
-      return;
-    }
-    const scale = zoomMode === "fit" ? getFitScale() : manualZoom;
-    const widthPx = viewBoxSize.width * scale;
-    const heightPx = viewBoxSize.height * scale;
-    svgEl.style.width = `${widthPx}px`;
-    svgEl.style.height = `${heightPx}px`;
-    updateZoomLabel(scale);
+    if (!svgEl || !viewBoxSize) return;
+
+    const base = getFitScale();
+    const scale = base * zoomFactor;
+
+    // Set explicit pixel size so scrollbars represent scaled extents.
+    svgEl.style.width = `${viewBoxSize.width * scale}px`;
+    svgEl.style.height = `${viewBoxSize.height * scale}px`;
+
+    updateZoomLabel();
   };
 
-  fitButton.addEventListener("click", () => {
-    zoomMode = "fit";
+  const setZoomFactor = (next) => {
+    zoomFactor = clamp(next, 0.1, 10);
     applyZoom();
+  };
+
+  fitButton.addEventListener("click", () => setZoomFactor(1));
+  resetButton.addEventListener("click", () => setZoomFactor(1));
+  zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
+  zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
+
+  // Ctrl/⌘ + wheel zoom (keeps normal scroll otherwise)
+  viewport.addEventListener(
+    "wheel",
+    (e) => {
+      const zoomKey = e.ctrlKey || e.metaKey;
+      if (!zoomKey) return;
+      e.preventDefault();
+      const dir = e.deltaY > 0 ? -1 : 1;
+      setZoomFactor(zoomFactor * (dir > 0 ? 1.08 : 1 / 1.08));
+    },
+    { passive: false }
+  );
+
+  // Drag-to-pan (mouse + touch via Pointer Events)
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startScrollLeft = 0;
+  let startScrollTop = 0;
+
+  viewport.style.cursor = "grab";
+
+  viewport.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 && e.pointerType !== "touch") return;
+    dragging = true;
+    viewport.setPointerCapture(e.pointerId);
+    startX = e.clientX;
+    startY = e.clientY;
+    startScrollLeft = viewport.scrollLeft;
+    startScrollTop = viewport.scrollTop;
+    viewport.style.cursor = "grabbing";
   });
 
-  zoomOutButton.addEventListener("click", () => {
-    zoomMode = "manual";
-    manualZoom = clamp(manualZoom / 1.1, 0.1, 6);
-    applyZoom();
+  viewport.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    viewport.scrollLeft = startScrollLeft - dx;
+    viewport.scrollTop = startScrollTop - dy;
   });
 
-  zoomInButton.addEventListener("click", () => {
-    zoomMode = "manual";
-    manualZoom = clamp(manualZoom * 1.1, 0.1, 6);
-    applyZoom();
-  });
+  const endDrag = () => {
+    dragging = false;
+    viewport.style.cursor = "grab";
+  };
 
-  const resizeObserver = new ResizeObserver(() => {
-    if (zoomMode === "fit") {
-      applyZoom();
-    }
-  });
+  viewport.addEventListener("pointerup", endDrag);
+  viewport.addEventListener("pointercancel", endDrag);
+  viewport.addEventListener("pointerleave", endDrag);
 
+  const resizeObserver = new ResizeObserver(() => applyZoom());
   resizeObserver.observe(viewport);
 
   const render = () => {
     clearEl(viewport);
     const draft = getDraft();
     if (!draft) {
-      viewport.textContent = "No preview yet.";
+      viewport.textContent = t("preview.noPreview");
       return;
     }
+
     const svgString = svgExport(draft, getSummary());
     const container = createEl("div");
     container.innerHTML = svgString;
     const nextSvg = container.querySelector("svg");
     if (!nextSvg) {
-      viewport.textContent = "Preview unavailable.";
+      viewport.textContent = t("preview.unavailable");
       return;
     }
+
     viewBoxSize = parseViewBox(nextSvg);
+
+    // Preview must not use physical mm sizing; we control px size.
     nextSvg.removeAttribute("width");
     nextSvg.removeAttribute("height");
     nextSvg.style.display = "block";
+
     viewport.appendChild(nextSvg);
     svgEl = nextSvg;
-    zoomMode = "fit";
-    manualZoom = 1;
+
+    zoomFactor = 1;
     applyZoom();
   };
 
