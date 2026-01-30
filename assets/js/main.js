@@ -50,6 +50,7 @@ if (state.selectedModuleId) {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    // Relative path so it works under GitHub Pages subpath (/<repo>/)
+    navigator.serviceWorker.register("./sw.js").catch(() => undefined);
   });
 }
