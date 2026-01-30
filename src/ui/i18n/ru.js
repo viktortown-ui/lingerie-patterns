@@ -37,6 +37,10 @@ export const ru = {
 
   "export.instructions": "Печать в масштабе 100% / Actual size. Отключите «Fit to page». Измерьте отметку 50mm линейкой.",
   "export.legend": "Легенда: линия кроя — сплошная, линия строчки — пунктир",
+  "export.legendShort": "Линия кроя / Линия строчки",
+  "export.unitsLabel": "Единицы",
+  "export.seamAllowanceLabel": "Припуск на шов",
+  "export.calibrationMark": "50mm",
   "export.seamAllowanceOn": "Вкл.",
   "export.seamAllowanceOff": "Выкл.",
 };

@@ -89,6 +89,15 @@ function calibrationMark({ marginPt, pageHeightPt }) {
   ].join("\n");
 }
 
+function resolveLabelText(value, resolveText) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") {
+    if (resolveText) return resolveText(value);
+    return value.en || value.ru || "";
+  }
+  return "";
+}
+
 function annotationPaths(annotations, unitScale) {
   const arrowSize = Units.toPtFromMm(3);
   const arrowAngle = Math.PI / 6;
@@ -124,6 +133,7 @@ function annotationPaths(annotations, unitScale) {
 
 function labelCommands({
   annotations,
+  resolveText,
   unitScale,
   offsetPtX,
   offsetPtY,
@@ -150,9 +160,11 @@ function labelCommands({
     const pageX = xPt + marginPt - offsetPtX - minXPt;
     const pageY = pageHeightPt - (yPt + marginPt + offsetPtY + minYPt);
     commands.push("BT");
+    const labelText = resolveLabelText(anno.text, resolveText);
+    if (!labelText) return;
     commands.push("/F1 8 Tf");
     commands.push(`${pageX} ${pageY} Td`);
-    commands.push(`(${String(anno.text).replace(/[()]/g, "")}) Tj`);
+    commands.push(`(${String(labelText).replace(/[()]/g, "")}) Tj`);
     commands.push("ET");
   });
 
@@ -204,6 +216,7 @@ export function pdfExport(draft, options = {}) {
   const marginMm = options.marginMm ?? 10;
   const paper = PAPER_SIZES[options.paperSize] || PAPER_SIZES.A4;
   const info = options.info || {};
+  const resolveText = options.resolveText;
   const pathEntries = Object.entries(draft.paths).map(([name, path]) => ({ name, path }));
   const paths = pathEntries.map(({ path }) => path);
   const bounds = mergeBounds(paths);
@@ -242,11 +255,7 @@ export function pdfExport(draft, options = {}) {
       const pathCommands = pathEntries
         .map((entry) => {
           const isSeam = entry.name.toLowerCase().includes("seam");
-          const dash = isSeam
-            ? "[] 0 d"
-            : seamAllowanceApplied
-              ? "[3 3] 0 d"
-              : "[] 0 d";
+          const dash = isSeam && seamAllowanceApplied ? "[3 2] 0 d" : "[] 0 d";
           return [dash, pathToPdf(entry.path, unitScale)].join("\n");
         })
         .join("\n");
@@ -257,6 +266,7 @@ export function pdfExport(draft, options = {}) {
       const pageLabel = `R${row + 1}C${col + 1}`;
       const labelText = labelCommands({
         annotations: draft.annotations || [],
+        resolveText,
         unitScale,
         offsetPtX,
         offsetPtY,
