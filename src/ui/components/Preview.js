@@ -1,5 +1,6 @@
 import { createEl, clearEl } from "../../core/utils/dom.js";
 import { svgExport } from "../../core/export/svgExport.js";
+import { Units } from "../../core/geometry/Units.js";
 import { resolveText, t } from "../i18n/i18n.js";
 
 export function Preview({ getDraft, getSummary }) {
@@ -46,11 +47,11 @@ export function Preview({ getDraft, getSummary }) {
 
   let svgEl = null;
   let viewBoxSize = null;
+  let pxPerUnit = 1;
 
   // Zoom is absolute: 1.0 = 100% of SVG units
   let zoomFactor = 1;
   let fitMode = true;
-  const maxFitZoom = 1;
   const minZoom = 0.25;
   const maxZoom = 3;
   let showLabels = true;
@@ -74,7 +75,7 @@ export function Preview({ getDraft, getSummary }) {
     if (!viewBoxSize) return 1;
     const w = viewport.clientWidth || 1;
     const h = viewport.clientHeight || 1;
-    return Math.min(w / viewBoxSize.width, h / viewBoxSize.height);
+    return Math.min(w / (viewBoxSize.width * pxPerUnit), h / (viewBoxSize.height * pxPerUnit));
   };
 
   const applyZoom = () => {
@@ -83,8 +84,8 @@ export function Preview({ getDraft, getSummary }) {
     const scale = zoomFactor;
 
     // Set explicit pixel size so scrollbars represent scaled extents.
-    svgEl.style.width = `${viewBoxSize.width * scale}px`;
-    svgEl.style.height = `${viewBoxSize.height * scale}px`;
+    svgEl.style.width = `${viewBoxSize.width * pxPerUnit * scale}px`;
+    svgEl.style.height = `${viewBoxSize.height * pxPerUnit * scale}px`;
 
     updateZoomLabel();
   };
@@ -97,7 +98,7 @@ export function Preview({ getDraft, getSummary }) {
 
   const applyFit = () => {
     fitMode = true;
-    zoomFactor = clamp(Math.min(getFitScale(), maxFitZoom), minZoom, maxZoom);
+    zoomFactor = clamp(getFitScale(), minZoom, maxZoom);
     applyZoom();
   };
 
@@ -134,6 +135,8 @@ export function Preview({ getDraft, getSummary }) {
   let startY = 0;
   let startScrollLeft = 0;
   let startScrollTop = 0;
+  let pinchStartDistance = null;
+  let pinchStartZoom = zoomFactor;
 
   viewport.style.cursor = "grab";
 
@@ -150,6 +153,7 @@ export function Preview({ getDraft, getSummary }) {
 
   viewport.addEventListener("pointermove", (e) => {
     if (!dragging) return;
+    if (pinchStartDistance !== null) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     viewport.scrollLeft = startScrollLeft - dx;
@@ -164,6 +168,46 @@ export function Preview({ getDraft, getSummary }) {
   viewport.addEventListener("pointerup", endDrag);
   viewport.addEventListener("pointercancel", endDrag);
   viewport.addEventListener("pointerleave", endDrag);
+
+  const getTouchDistance = (touches) => {
+    const [first, second] = touches;
+    if (!first || !second) return null;
+    const dx = second.clientX - first.clientX;
+    const dy = second.clientY - first.clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  viewport.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 2) return;
+      pinchStartDistance = getTouchDistance(e.touches);
+      pinchStartZoom = zoomFactor;
+      dragging = false;
+    },
+    { passive: true }
+  );
+
+  viewport.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches.length !== 2 || pinchStartDistance === null) return;
+      const nextDistance = getTouchDistance(e.touches);
+      if (!nextDistance) return;
+      e.preventDefault();
+      const scale = nextDistance / pinchStartDistance;
+      setZoomFactor(pinchStartZoom * scale);
+    },
+    { passive: false }
+  );
+
+  viewport.addEventListener(
+    "touchend",
+    () => {
+      pinchStartDistance = null;
+    },
+    { passive: true }
+  );
 
   const resizeObserver = new ResizeObserver(() => {
     if (fitMode) {
@@ -222,6 +266,7 @@ export function Preview({ getDraft, getSummary }) {
     });
 
     const unit = draft.meta?.unit || "cm";
+    pxPerUnit = Units.toMm(1, unit) * (96 / 25.4);
     const hasSeamPaths = Object.keys(draft.paths || {}).some((name) => name.toLowerCase().includes("seam"));
     const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
     const seamAllowanceLabel = seamAllowanceApplied ? t("export.seamAllowanceOn") : t("export.seamAllowanceOff");

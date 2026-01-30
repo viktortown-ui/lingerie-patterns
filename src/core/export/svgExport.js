@@ -50,11 +50,20 @@ function wrapWithAutoSize(text, { maxChars, fontSize, minFontSize = 9, maxLines 
   return { lines, fontSize: nextFontSize };
 }
 
-function renderMultilineText({ x, y, lines, fontSize, fill, lineHeightEm = 1.2, formatFontSize }) {
+function renderMultilineText({
+  x,
+  y,
+  lines,
+  fontSize,
+  fill,
+  lineHeight,
+  formatFontSize,
+  formatLength,
+}) {
   if (!lines.length) return "";
   const tspans = lines
     .map((line, index) => {
-      const dy = index === 0 ? "0" : `${lineHeightEm}em`;
+      const dy = index === 0 ? "0" : formatLength(lineHeight);
       return `<tspan x="${x}" dy="${dy}">${line}</tspan>`;
     })
     .join("");
@@ -122,14 +131,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const isPreview = mode === "preview";
   const showLabels = options.showLabels ?? true;
 
-  const formatFontSize = (value) =>
-    isPreview ? `${value}px` : `${Units.toMm(value, unit)}mm`;
-  const formatLength = (value) =>
-    isPreview ? `${value}px` : `${Units.toMm(value, unit)}mm`;
-  const formatDashArray = (dash, gap) =>
-    isPreview
-      ? `${formatLength(dash)} ${formatLength(gap)}`
-      : `${Units.toMm(dash, unit)}mm ${Units.toMm(gap, unit)}mm`;
+  const formatLength = (value) => `${value}`;
+  const formatFontSize = formatLength;
+  const formatDashArray = (dash, gap) => `${formatLength(dash)} ${formatLength(gap)}`;
 
   const marginLeft = Units.fromMm(10, unit);
   const marginRight = Units.fromMm(10, unit);
@@ -155,9 +159,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const calibX = exportBounds.minX + Units.fromMm(4, unit);
   const calibY = exportBounds.minY + Units.fromMm(4, unit) + calibrationSize;
 
-  const infoFontSize = isPreview ? 12 : Units.fromMm(3.2, unit);
-  const compactFontSize = isPreview ? 10 : Units.fromMm(2.6, unit);
-  const lineHeightEm = 1.2;
+  const infoFontSize = Units.fromMm(3.2, unit);
+  const compactFontSize = Units.fromMm(2.6, unit);
+  const lineHeightFactor = 1.2;
 
   const hasSeamPaths = pathEntries.some(([name]) => name.toLowerCase().includes("seam"));
   const seamAllowanceApplied = Boolean(meta.seamAllowanceApplied && hasSeamPaths);
@@ -191,10 +195,10 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
 
   const annotationMarkup = renderAnnotations(draft.annotations, {
     resolveText,
-    labelFontSize: isPreview ? 12 : Units.fromMm(3, unit),
-    labelStrokeWidth: isPreview ? 2 : Units.fromMm(0.3, unit),
-    grainlineStrokeWidth: isPreview ? 1 : Units.fromMm(0.2, unit),
-    notchRadius: isPreview ? 2 : Units.fromMm(0.2, unit),
+    labelFontSize: Units.fromMm(3, unit),
+    labelStrokeWidth: Units.fromMm(0.3, unit),
+    grainlineStrokeWidth: Units.fromMm(0.2, unit),
+    notchRadius: Units.fromMm(0.2, unit),
     showLabels,
     formatFontSize,
     formatLength,
@@ -204,9 +208,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     .map(([name, path]) => {
       const isSeam = name.toLowerCase().includes("seam");
       const seamStyle = seamAllowanceApplied && isSeam;
-      const strokeWidth = isPreview ? (seamStyle ? 1 : 1.5) : Units.fromMm(seamStyle ? 0.35 : 0.6, unit);
+      const strokeWidth = Units.fromMm(seamStyle ? 0.3 : 0.6, unit);
       const dashArray = seamStyle
-        ? ` stroke-dasharray="${formatDashArray(isPreview ? 6 : Units.fromMm(3, unit), isPreview ? 4 : Units.fromMm(2, unit))}"`
+        ? ` stroke-dasharray="${formatDashArray(Units.fromMm(3, unit), Units.fromMm(2, unit))}"`
         : "";
       return `<path d="${path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${formatLength(
         strokeWidth
@@ -217,8 +221,8 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const infoX = exportBounds.minX + Units.fromMm(4, unit);
   const infoY = exportBounds.maxY - Units.fromMm(22, unit);
   const titleY = infoY - Units.fromMm(8, unit);
-  const scaleBlockHeight = scaleBlock.fontSize * lineHeightEm * scaleLinesFinal.length;
-  const summaryBlockHeight = summaryBlock.fontSize * lineHeightEm * summaryLinesFinal.length;
+  const scaleBlockHeight = scaleBlock.fontSize * lineHeightFactor * scaleLinesFinal.length;
+  const summaryBlockHeight = summaryBlock.fontSize * lineHeightFactor * summaryLinesFinal.length;
   const scaleY = infoY + infoFontSize * 0.2;
   const summaryY = scaleY + scaleBlockHeight + infoFontSize * 0.6;
   const legendY = summaryY + summaryBlockHeight + infoFontSize * 0.6;
@@ -230,7 +234,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
         lines: legendBlock.lines,
         fontSize: legendBlock.fontSize,
         fill: "#555",
+        lineHeight: legendBlock.fontSize * lineHeightFactor,
         formatFontSize,
+        formatLength,
       })
     : "";
 
@@ -245,7 +251,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   ${pathMarkup}
   ${annotationMarkup}
   <g id="calibration-50mm" stroke="#d11" stroke-width="${formatLength(
-    isPreview ? 1 : Units.fromMm(0.4, unit)
+    Units.fromMm(0.4, unit)
   )}" fill="none">
     <line x1="${calibX}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY}" />
     <line x1="${calibX + calibrationSize}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY - calibrationSize}" />
@@ -261,7 +267,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: titleLines,
           fontSize: titleBlock.fontSize,
           fill: "#333",
+          lineHeight: titleBlock.fontSize * lineHeightFactor,
           formatFontSize,
+          formatLength,
         })
       : ""
   }
@@ -273,7 +281,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: scaleLinesFinal,
           fontSize: scaleBlock.fontSize,
           fill: "#555",
+          lineHeight: scaleBlock.fontSize * lineHeightFactor,
           formatFontSize,
+          formatLength,
         })
       : ""
   }
@@ -285,7 +295,9 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
           lines: summaryLinesFinal,
           fontSize: summaryBlock.fontSize,
           fill: "#555",
+          lineHeight: summaryBlock.fontSize * lineHeightFactor,
           formatFontSize,
+          formatLength,
         })
       : ""
   }
