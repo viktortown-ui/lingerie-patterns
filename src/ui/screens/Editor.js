@@ -23,7 +23,9 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
   const header = createEl("div", { className: "topbar" });
   const backButton = createEl("button", { className: "secondary", text: "Back" });
   const themeButton = createEl("button", { className: "secondary", text: "Toggle theme" });
-  const title = createEl("h2", { text: module.name });
+  // Separate title nodes: a DOM node can't live in two places at once.
+  const headerTitle = createEl("h2", { text: module.name });
+  const sidebarTitle = createEl("h3", { text: "Measurements" });
 
   backButton.addEventListener("click", onBack);
   themeButton.addEventListener("click", () => {
@@ -31,7 +33,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
     onThemeToggle(theme);
   });
 
-  header.append(backButton, title, themeButton);
+  header.append(backButton, headerTitle, themeButton);
 
   const formValues = { ...module.schema.defaults };
   const lastProfile = state.profiles.find((profile) => profile.id === state.lastProfileId);
@@ -156,7 +158,7 @@ export function Editor({ moduleId, state, onBack, onThemeToggle }) {
 
   actionBar.append(exportSvgButton, exportPdfButton);
 
-  sidebar.append(title, form.el, profileTitle, profileList, saveProfileButton);
+  sidebar.append(sidebarTitle, form.el, profileTitle, profileList, saveProfileButton);
   previewCard.append(preview.el);
 
   container.append(header, sidebar, previewCard, actionBar, toast.el);

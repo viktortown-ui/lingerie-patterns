@@ -48,6 +48,8 @@ body {
   justify-content: space-between;
   padding: 0 var(--pad);
   gap: 12px;
+  /* When .topbar is placed inside the grid (.main), span full width */
+  grid-column: 1 / -1;
 }
 
 .main {
@@ -152,6 +154,14 @@ button:disabled {
   padding: var(--pad);
   padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, rgba(246, 244, 242, 0.1), var(--bg));
+  /* Prevent grid-row stretching from turning buttons into skyscrapers */
+  grid-column: 1 / -1;
+  align-self: end;
+  z-index: 5;
+}
+
+.actions button {
+  flex: 0 0 auto;
 }
 
 .toast {
