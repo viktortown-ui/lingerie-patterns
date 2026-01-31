@@ -43,11 +43,16 @@ function offsetPolyline(points, offset, { closed, miterLimit }) {
   for (let i = 0; i < segmentCount; i += 1) {
     const start = points[i];
     const end = points[(i + 1) % totalPoints];
+    if (Math.hypot(end.x - start.x, end.y - start.y) < EPSILON) {
+      continue;
+    }
     const n = normal(start, end);
     const startOffset = new Point(start.x + n.x * offset, start.y + n.y * offset);
     const endOffset = new Point(end.x + n.x * offset, end.y + n.y * offset);
     segments.push({ start: startOffset, end: endOffset });
   }
+
+  if (segments.length === 0) return [];
 
   const output = [];
 
@@ -65,8 +70,8 @@ function offsetPolyline(points, offset, { closed, miterLimit }) {
     if (!closed && (i === 0 || i === totalPoints - 1)) {
       continue;
     }
-    const prevIndex = (i - 1 + segmentCount) % segmentCount;
-    const nextIndex = i % segmentCount;
+    const prevIndex = (i - 1 + segments.length) % segments.length;
+    const nextIndex = i % segments.length;
     const prevSeg = segments[prevIndex];
     const nextSeg = segments[nextIndex];
     const intersection = lineIntersection(prevSeg.start, prevSeg.end, nextSeg.start, nextSeg.end);
@@ -82,7 +87,7 @@ function offsetPolyline(points, offset, { closed, miterLimit }) {
   }
 
   if (!closed) {
-    pushPoint(segments[segmentCount - 1].end);
+    pushPoint(segments[segments.length - 1].end);
   }
 
   if (closed && output.length > 1 && pointsEqual(output[0], output[output.length - 1])) {
@@ -94,7 +99,8 @@ function offsetPolyline(points, offset, { closed, miterLimit }) {
 
 export function offsetPath(path, offset) {
   if (!Number.isFinite(offset) || offset === 0) return path;
-  const points = path.toPoints(80);
+  const hasCurves = path.segments.some((segment) => segment.type === "C");
+  const points = path.toPoints(hasCurves ? 80 : 12);
   if (points.length < 2) return path;
   const closed = path.segments.some((segment) => segment.type === "Z");
   const area = closed
@@ -105,7 +111,7 @@ export function offsetPath(path, offset) {
     : 0;
   const direction = closed && area > 0 ? -1 : 1;
   const offsetDistance = offset * direction;
-  const miterLimit = Math.abs(offsetDistance) * 4;
+  const miterLimit = Math.max(Math.abs(offsetDistance) * 4, Math.abs(offsetDistance) * 2 + 1);
   const shifted = offsetPolyline(points, offsetDistance, { closed, miterLimit });
   if (!shifted.length) return path;
 

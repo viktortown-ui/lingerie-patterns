@@ -70,6 +70,33 @@ export const schema = {
       default: "classic",
     },
     {
+      key: "gussetWidthCm",
+      label: { en: "Gusset width (cm)", ru: "Ширина ластовицы (см)" },
+      description: {
+        en: "Typical gusset width ranges from 5–7cm.",
+        ru: "Типичная ширина ластовицы 5–7см.",
+      },
+      choices: [
+        { label: { en: "5cm", ru: "5см" }, value: 5 },
+        { label: { en: "6cm", ru: "6см" }, value: 6 },
+        { label: { en: "7cm", ru: "7см" }, value: 7 },
+      ],
+      default: 6,
+    },
+    {
+      key: "gussetLining",
+      label: { en: "Gusset lining", ru: "Подкладка ластовицы" },
+      description: {
+        en: "Include a separate lining layer for the gusset.",
+        ru: "Добавить отдельную подкладку для ластовицы.",
+      },
+      choices: [
+        { label: { en: "Yes", ru: "Да" }, value: true },
+        { label: { en: "No", ru: "Нет" }, value: false },
+      ],
+      default: true,
+    },
+    {
       key: "seamAllowance",
       label: { en: "Seam allowance", ru: "Припуск на шов" },
       description: {
@@ -87,6 +114,8 @@ export const schema = {
   ],
   optionDefaults: {
     style: "classic",
+    gussetWidthCm: 6,
+    gussetLining: true,
     seamAllowance: 6,
   },
 };

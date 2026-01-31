@@ -16,7 +16,9 @@ export function Form({ schema, values, onChange, onSubmit }) {
       const label = createEl("label", { text: labelText });
       const input = createEl("input", {
         attrs: {
-          type: "number",
+          type: "text",
+          inputmode: "decimal",
+          pattern: "[0-9.,]*",
           min: field.min,
           max: field.max,
           step: field.step ?? 1,
@@ -30,7 +32,9 @@ export function Form({ schema, values, onChange, onSubmit }) {
       const error = createEl("div", { className: "error" });
 
       input.addEventListener("input", (event) => {
-        values[field.key] = event.target.value === "" ? "" : Number(event.target.value);
+        const rawValue = String(event.target.value || "");
+        const normalized = rawValue.replace(",", ".");
+        values[field.key] = normalized === "" ? "" : Number(normalized);
         const fieldErrors = validateSchema(schema, values);
         error.textContent = fieldErrors[field.key]?.[0] || "";
         onChange(values, fieldErrors);
@@ -94,7 +98,7 @@ export function Form({ schema, values, onChange, onSubmit }) {
   const setValues = (nextValues) => {
     Object.entries(nextValues).forEach(([key, value]) => {
       const input = inputs.get(key);
-      if (input) input.value = value;
+      if (input) input.value = value ?? "";
     });
   };
 

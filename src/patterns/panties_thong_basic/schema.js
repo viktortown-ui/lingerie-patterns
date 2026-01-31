@@ -60,19 +60,34 @@ export const schema = {
   },
   options: [
     {
-      key: "thongWidth",
+      key: "thongWidthCm",
       label: { en: "Thong width (cm)", ru: "Ширина стрингов (см)" },
       description: {
-        en: "Controls the narrow width of the thong at the crotch.",
+        en: "Controls the narrow width of the thong strap at the crotch.",
         ru: "Управляет узкой шириной стрингов в области ластовицы.",
       },
       choices: [
+        { label: { en: "1.5cm", ru: "1.5см" }, value: 1.5 },
         { label: { en: "2cm", ru: "2см" }, value: 2 },
+        { label: { en: "2.5cm", ru: "2.5см" }, value: 2.5 },
         { label: { en: "3cm", ru: "3см" }, value: 3 },
+        { label: { en: "3.5cm", ru: "3.5см" }, value: 3.5 },
         { label: { en: "4cm", ru: "4см" }, value: 4 },
-        { label: { en: "5cm", ru: "5см" }, value: 5 },
       ],
       default: 3,
+    },
+    {
+      key: "gussetLining",
+      label: { en: "Gusset lining", ru: "Подкладка ластовицы" },
+      description: {
+        en: "Include a separate lining layer for the gusset.",
+        ru: "Добавить отдельную подкладку для ластовицы.",
+      },
+      choices: [
+        { label: { en: "Yes", ru: "Да" }, value: true },
+        { label: { en: "No", ru: "Нет" }, value: false },
+      ],
+      default: true,
     },
     {
       key: "seamAllowance",
@@ -91,7 +106,8 @@ export const schema = {
     },
   ],
   optionDefaults: {
-    thongWidth: 3,
+    thongWidthCm: 3,
+    gussetLining: true,
     seamAllowance: 6,
   },
 };

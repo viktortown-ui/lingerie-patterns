@@ -10,7 +10,7 @@ import { Toast } from "../components/Toast.js";
 import { resolveText, t } from "../i18n/i18n.js";
 import { toggleTheme } from "../styles/theme.js";
 import { downloadBlob } from "../utils/download.js";
-import { upsertProfile, deleteProfile } from "../state/store.js";
+import { upsertProfile, deleteProfile, updateDraft } from "../state/store.js";
 
 export function Editor({
   moduleId,
@@ -69,6 +69,13 @@ export function Editor({
   if (lastProfile?.options) {
     Object.assign(optionValues, lastProfile.options);
   }
+  const storedDraft = state.draft && state.draft.moduleId === moduleId ? state.draft : null;
+  if (storedDraft?.measurements) {
+    Object.assign(formValues, storedDraft.measurements);
+  }
+  if (storedDraft?.options) {
+    Object.assign(optionValues, storedDraft.options);
+  }
   const formState = { ...formValues, ...optionValues };
 
   let draft = null;
@@ -123,11 +130,28 @@ export function Editor({
     return [...measurements, seamSummary];
   };
 
+  let previewSettings = {
+    scaleLabels: storedDraft?.preview?.scaleLabels,
+    seamHighlight: storedDraft?.preview?.seamHighlight,
+  };
+
   const preview = Preview({
     getDraft: () => draft,
     getSummary: measurementsSummary,
+    settings: previewSettings,
+    onSettingsChange: (nextSettings) => {
+      previewSettings = { ...previewSettings, ...nextSettings };
+      updateDraft({
+        moduleId,
+        measurements: { ...formValues },
+        options: { ...optionValues },
+        paperSize: paperSelect?.value || storedDraft?.paperSize || state.paperSize || "A4",
+        preview: previewSettings,
+      });
+    },
   });
   const toast = Toast();
+  let lastWarning = "";
 
   const handleChange = (values, fieldErrors) => {
     module.schema.fields.forEach((field) => {
@@ -137,10 +161,24 @@ export function Editor({
       optionValues[option.key] = values[option.key];
     });
     errors = fieldErrors;
+    updateDraft({
+      moduleId,
+      measurements: { ...formValues },
+      options: { ...optionValues },
+      paperSize: paperSelect?.value || storedDraft?.paperSize || state.paperSize || "A4",
+      preview: previewSettings,
+    });
     if (Object.keys(errors).length) return;
     try {
       draft = module.draft(values, optionValues);
       preview.render();
+      const warningText = draft?.meta?.warnings?.length
+        ? resolveText(draft.meta.warnings[0])
+        : "";
+      if (warningText && warningText !== lastWarning) {
+        lastWarning = warningText;
+        toast.show(warningText);
+      }
     } catch (error) {
       toast.show(error.message || t("editor.draftFailed"));
     }
@@ -208,15 +246,16 @@ export function Editor({
   const exportSvgButton = createEl("button", { text: t("editor.downloadSvg") });
   const exportPdfButton = createEl("button", { text: t("editor.downloadPdf") });
   const paperLabel = createEl("span", { className: "muted", text: t("editor.paperSize") });
+  const initialPaperSize = storedDraft?.paperSize || state.paperSize || "A4";
   const paperSelect = createEl("select", {
-    attrs: { value: state.paperSize || "A4" },
+    attrs: { value: initialPaperSize },
   });
   [
     { value: "A4", label: t("editor.paperSizeA4") },
     { value: "A3", label: t("editor.paperSizeA3") },
   ].forEach((option) => {
     const opt = createEl("option", { text: option.label, attrs: { value: option.value } });
-    if ((state.paperSize || "A4") === option.value) opt.selected = true;
+    if (initialPaperSize === option.value) opt.selected = true;
     paperSelect.appendChild(opt);
   });
   const paperHelp = createEl("div", { className: "helper-text", text: t("editor.paperHelp") });
@@ -241,7 +280,15 @@ export function Editor({
     };
   })();
   const handlePaperChange = (event) => {
-    onPaperSizeChange?.(String(event.target.value));
+    const nextPaper = String(event.target.value);
+    onPaperSizeChange?.(nextPaper);
+    updateDraft({
+      moduleId,
+      measurements: { ...formValues },
+      options: { ...optionValues },
+      paperSize: nextPaper,
+      preview: previewSettings,
+    });
   };
   paperSelect.addEventListener("change", handlePaperChange);
   paperSelect.addEventListener("input", handlePaperChange);
@@ -292,7 +339,7 @@ export function Editor({
 
     const { data } = pdfExport(draft, {
       marginMm: 10,
-      paperSize: state.paperSize || "A4",
+      paperSize: paperSelect.value || state.paperSize || "A4",
       resolveText: resolveTextEn,
       info: {
         moduleName: infoModuleName,

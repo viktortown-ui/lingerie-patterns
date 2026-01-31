@@ -3,6 +3,7 @@ import { Point } from "../src/core/geometry/Point.js";
 import { sampleCubic } from "../src/core/geometry/Bezier.js";
 import { Path } from "../src/core/geometry/Path.js";
 import { offsetPath } from "../src/core/geometry/Offset.js";
+import pantiesThongModule from "../src/patterns/panties_thong_basic/module.js";
 
 {
   const p1 = new Point(0, 0);
@@ -36,4 +37,21 @@ import { offsetPath } from "../src/core/geometry/Offset.js";
   const offset = offsetPath(curve, 1);
   const points = offset.toPoints();
   assert.ok(points.length > 0);
+}
+
+{
+  const thongWidth = 2.5;
+  const draft = pantiesThongModule.draft(
+    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
+    { seamAllowance: 0, thongWidthCm: thongWidth }
+  );
+  const backPanel = draft.panels.find((panel) => panel.id === "back");
+  assert.ok(backPanel);
+  const outline = backPanel.paths.outline;
+  const points = outline.toPoints(80);
+  const minX = Math.min(...points.map((point) => point.x));
+  const curveSegments = outline.segments.filter((segment) => segment.type === "C");
+  const crotchPoint = curveSegments[curveSegments.length - 1].points[3];
+  const estimatedWidth = (crotchPoint.x - minX) * 2;
+  assert.ok(Math.abs(estimatedWidth - thongWidth) < 0.6);
 }
