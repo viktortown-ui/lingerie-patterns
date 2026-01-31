@@ -30,6 +30,8 @@ export const en = {
   "form.options": "Options",
   "module.panties_basic.name": "Panties Basic",
   "module.panties_basic.category": "Bottoms",
+  "module.panties_thong_basic.name": "Panties Thong Basic",
+  "module.panties_thong_basic.category": "Bottoms",
   "module.test_rectangle.name": "Test Rectangle",
   "module.test_rectangle.category": "Test",
 
@@ -38,6 +40,7 @@ export const en = {
   "preview.zoomOut": "Zoom out",
   "preview.reset": "Reset",
   "preview.scaleLabels": "Scale labels",
+  "preview.highlightSeamAllowance": "Highlight seam allowance",
   "preview.calibrateScreen": "Calibrate screen",
   "preview.screenScale": "Screen scale",
   "preview.decreaseScale": "Decrease screen scale",

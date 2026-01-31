@@ -79,6 +79,11 @@
 - /docs/USER_GUIDE.md
 - /sw.js
 
+## Phase 1.5 — Seam allowance smoothing + thong model
+- [ ] Replace seam allowance offset with mitered polyline offsets + miter limit fallback.
+- [ ] Add a preview toggle to highlight seam allowance styling.
+- [ ] Add the **Panties Thong Basic** module with thong width option.
+
 ## Phase 2 — Reliability + UX upgrades
 
 ### A) Harden mobile download (SVG + PDF)
