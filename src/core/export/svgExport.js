@@ -236,6 +236,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const mode = options.mode || "export";
   const includeInfo = mode !== "preview";
   const isPreview = mode === "preview";
+  const highlightSeamAllowance = Boolean(options.highlightSeamAllowance && isPreview);
   const showLabels = options.showLabels ?? true;
   const preserveAspectRatio = options.preserveAspectRatio || "xMinYMin meet";
 
@@ -335,9 +336,13 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     .map((entry) => {
       const isSeam = (entry.pathName || entry.name).toLowerCase().includes("seam");
       const seamStyle = seamAllowanceApplied && isSeam;
-      const strokeWidth = Units.fromMm(seamStyle ? 0.3 : 0.6, unit);
+      const seamStroke = highlightSeamAllowance ? 0.9 : 0.45;
+      const strokeWidth = Units.fromMm(seamStyle ? seamStroke : 0.6, unit);
       const dashArray = seamStyle
-        ? ` stroke-dasharray="${formatDashArray(Units.fromMm(3, unit), Units.fromMm(2, unit))}"`
+        ? ` stroke-dasharray="${formatDashArray(
+            Units.fromMm(highlightSeamAllowance ? 4 : 3, unit),
+            Units.fromMm(highlightSeamAllowance ? 3 : 2, unit)
+          )}"`
         : "";
       return `<path d="${entry.path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${formatLength(
         strokeWidth

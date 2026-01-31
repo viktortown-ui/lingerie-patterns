@@ -30,6 +30,8 @@ export const ru = {
   "form.options": "Опции",
   "module.panties_basic.name": "Базовые трусики",
   "module.panties_basic.category": "Низ",
+  "module.panties_thong_basic.name": "Базовые стринги",
+  "module.panties_thong_basic.category": "Низ",
   "module.test_rectangle.name": "Тестовый прямоугольник",
   "module.test_rectangle.category": "Тест",
 
@@ -38,6 +40,7 @@ export const ru = {
   "preview.zoomOut": "Отдалить",
   "preview.reset": "Сброс",
   "preview.scaleLabels": "Масштабировать подписи",
+  "preview.highlightSeamAllowance": "Выделить припуск на шов",
   "preview.calibrateScreen": "Калибровать экран",
   "preview.screenScale": "Масштаб экрана",
   "preview.decreaseScale": "Уменьшить масштаб",

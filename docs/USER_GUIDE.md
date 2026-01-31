@@ -38,6 +38,7 @@ Use **Toggle theme** in the top bar to switch between light and dark modes. The 
 ## Preview labels
 - Use **Scale labels** to keep annotations readable while zooming.
 - When scale is off, labels stay screen-sized while the geometry zooms/pans.
+- Use **Highlight seam allowance** to boost stitch line visibility in the preview (exports keep print styling).
 
 ## Hard refresh / clear cache (GitHub Pages)
 If you don’t see recent updates:
