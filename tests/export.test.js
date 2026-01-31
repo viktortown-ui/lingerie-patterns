@@ -14,6 +14,7 @@ const draft = pantiesModule.draft(
   assert.ok(svg.includes("<svg"));
   assert.ok(svg.includes("viewBox"));
   assert.ok(svg.includes('id="calibration-50mm"'));
+  assert.ok(svg.includes('id="calibration-100mm"'));
 }
 
 {
@@ -23,6 +24,7 @@ const draft = pantiesModule.draft(
   assert.ok(pageCount > 0);
   const pdfText = await data.text();
   assert.ok(pdfText.includes("50mm"));
+  assert.ok(pdfText.includes("100mm"));
 }
 
 {

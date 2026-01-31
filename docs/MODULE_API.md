@@ -43,7 +43,12 @@ Pattern modules are ES modules that export an object conforming to the `PatternM
 ## DraftResult shape
 ```
 {
-  paths: Record<string, Path>,
+  paths?: Record<string, Path>,
+  panels?: Array<{
+    id: string,
+    name?: string,
+    paths: Record<string, Path>
+  }>,
   annotations: Array<
     { type: "grainline", start: Point, end: Point } |
     { type: "notch", point: Point, label?: string } |
@@ -58,6 +63,14 @@ Pattern modules are ES modules that export an object conforming to the `PatternM
   }
 }
 ```
+
+## Panels and path naming conventions
+- Prefer returning `panels` for multi-piece patterns (front/back/gusset). `paths` remains supported for legacy modules.
+- Each panel exposes its own `paths` map so exports can target per-piece styling.
+- Use `*_cut` or `*_seam` suffixes to distinguish cut vs seam paths, or include `cut`/`seam` in the path key.
+- Example panel path keys:
+  - `front_cut`, `front_seam`
+  - `gusset_cut`, `gusset_seam`
 
 ## Registration
 ```

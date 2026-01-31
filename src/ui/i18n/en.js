@@ -32,11 +32,11 @@ export const en = {
   "preview.zoomIn": "Zoom in",
   "preview.zoomOut": "Zoom out",
   "preview.reset": "Reset",
-  "preview.showLabels": "Show labels",
+  "preview.scaleLabels": "Scale labels",
   "preview.noPreview": "No preview yet. Change a measurement to generate the draft.",
   "preview.unavailable": "Preview unavailable.",
 
-  "export.instructions": "Print at 100% / Actual size. Disable 'Fit to page'. Measure the 50mm mark with a ruler.",
+  "export.instructions": "Print at 100% / Actual size. Disable 'Fit to page'. Measure the 50mm and 100mm marks with a ruler.",
   "export.legend": "Legend: cut line = solid, stitch line = dashed",
   "export.legendShort": "Cut line / Stitch line",
   "export.patternTitle": "Pattern",
@@ -46,6 +46,7 @@ export const en = {
   "export.unitsLabel": "Units",
   "export.seamAllowanceLabel": "Seam allowance",
   "export.calibrationMark": "50mm",
+  "export.calibrationLarge": "100mm",
   "export.seamAllowanceOn": "On",
   "export.seamAllowanceOff": "Off",
 };

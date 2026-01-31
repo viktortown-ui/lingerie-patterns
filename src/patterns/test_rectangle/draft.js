@@ -35,6 +35,13 @@ export function draftRectangle(measurements) {
   ];
 
   return {
+    panels: [
+      {
+        id: "panel",
+        name: "Panel",
+        paths,
+      },
+    ],
     paths,
     annotations,
     meta: {

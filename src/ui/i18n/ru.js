@@ -32,11 +32,11 @@ export const ru = {
   "preview.zoomIn": "Приблизить",
   "preview.zoomOut": "Отдалить",
   "preview.reset": "Сброс",
-  "preview.showLabels": "Показывать подписи",
+  "preview.scaleLabels": "Масштабировать подписи",
   "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
   "preview.unavailable": "Предпросмотр недоступен.",
 
-  "export.instructions": "Печать в масштабе 100% / Actual size. Отключите «Fit to page». Измерьте отметку 50mm линейкой.",
+  "export.instructions": "Печать в масштабе 100% / Actual size. Отключите «Fit to page». Измерьте отметки 50mm и 100mm линейкой.",
   "export.legend": "Легенда: линия кроя — сплошная, линия строчки — пунктир",
   "export.legendShort": "Линия кроя / Линия строчки",
   "export.patternTitle": "Выкройка",
@@ -46,6 +46,7 @@ export const ru = {
   "export.unitsLabel": "Единицы",
   "export.seamAllowanceLabel": "Припуск на шов",
   "export.calibrationMark": "50mm",
+  "export.calibrationLarge": "100mm",
   "export.seamAllowanceOn": "Вкл.",
   "export.seamAllowanceOff": "Выкл.",
 };

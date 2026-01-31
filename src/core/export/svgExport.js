@@ -1,4 +1,5 @@
 import { Units } from "../geometry/Units.js";
+import { collectPaths, hasSeamPaths } from "../pattern/panels.js";
 
 function mergeBounds(boundsList) {
   const minX = Math.min(...boundsList.map((b) => b.minX));
@@ -119,8 +120,8 @@ function renderAnnotations(
 }
 
 export function svgExport(draft, measurementsSummary = [], options = {}) {
-  const pathEntries = Object.entries(draft.paths);
-  const paths = pathEntries.map(([, path]) => path);
+  const pathEntries = collectPaths(draft);
+  const paths = pathEntries.map((entry) => entry.path);
   const geometryBounds = mergeBounds(paths.map((path) => path.bounds()));
   const meta = draft.meta || {};
   const unit = meta.unit || "cm";
@@ -130,6 +131,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const includeInfo = mode !== "preview";
   const isPreview = mode === "preview";
   const showLabels = options.showLabels ?? true;
+  const preserveAspectRatio = options.preserveAspectRatio || "xMinYMin meet";
 
   const formatLength = (value) => `${value}`;
   const formatFontSize = formatLength;
@@ -163,8 +165,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const compactFontSize = Units.fromMm(2.6, unit);
   const lineHeightFactor = 1.2;
 
-  const hasSeamPaths = pathEntries.some(([name]) => name.toLowerCase().includes("seam"));
-  const seamAllowanceApplied = Boolean(meta.seamAllowanceApplied && hasSeamPaths);
+  const seamAllowanceApplied = Boolean(meta.seamAllowanceApplied && hasSeamPaths(pathEntries));
 
   const titleText = resolveLabelText(meta.title, resolveText) || labels.patternTitle || "Pattern";
   const titleBlock = wrapWithAutoSize(titleText, { maxChars: 28, fontSize: infoFontSize, maxLines: 2 });
@@ -205,16 +206,16 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   });
 
   const pathMarkup = pathEntries
-    .map(([name, path]) => {
-      const isSeam = name.toLowerCase().includes("seam");
+    .map((entry) => {
+      const isSeam = (entry.pathName || entry.name).toLowerCase().includes("seam");
       const seamStyle = seamAllowanceApplied && isSeam;
       const strokeWidth = Units.fromMm(seamStyle ? 0.3 : 0.6, unit);
       const dashArray = seamStyle
         ? ` stroke-dasharray="${formatDashArray(Units.fromMm(3, unit), Units.fromMm(2, unit))}"`
         : "";
-      return `<path d="${path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${formatLength(
+      return `<path d="${entry.path.toSVGPath()}" fill="none" stroke="#000" stroke-width="${formatLength(
         strokeWidth
-      )}"${dashArray} data-name="${name}" />`;
+      )}"${dashArray} data-name="${entry.name}" />`;
     })
     .join("\n");
 
@@ -240,8 +241,12 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
       })
     : "";
 
+  const calibrationLarge = Units.fromMm(100, unit);
+  const calibLargeX = calibX + calibrationSize + Units.fromMm(6, unit);
+  const calibLargeY = exportBounds.minY + Units.fromMm(4, unit);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${Units.toMm(width, unit)}mm" height="${Units.toMm(height, unit)}mm">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${Units.toMm(width, unit)}mm" height="${Units.toMm(height, unit)}mm" preserveAspectRatio="${preserveAspectRatio}">
   <defs>
     <marker id="arrow" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L4,2 L0,4 z" fill="#333" />
@@ -258,6 +263,14 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     <text x="${calibX}" y="${calibY + Units.fromMm(2, unit)}" font-size="${formatFontSize(
       infoFontSize
     )}" fill="#d11">${labels.calibration || "50mm"}</text>
+  </g>
+  <g id="calibration-100mm" stroke="#d11" stroke-width="${formatLength(
+    Units.fromMm(0.4, unit)
+  )}" fill="none">
+    <rect x="${calibLargeX}" y="${calibLargeY}" width="${calibrationLarge}" height="${calibrationLarge}" />
+    <text x="${calibLargeX}" y="${calibLargeY + calibrationLarge + Units.fromMm(2, unit)}" font-size="${formatFontSize(
+      infoFontSize
+    )}" fill="#d11">${labels.calibrationLarge || "100mm"}</text>
   </g>
   ${
     includeInfo

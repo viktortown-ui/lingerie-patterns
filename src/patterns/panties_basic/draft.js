@@ -47,6 +47,13 @@ export function draftPanties(measurements, options = {}) {
   ];
 
   return {
+    panels: [
+      {
+        id: "front",
+        name: "Front",
+        paths,
+      },
+    ],
     paths,
     annotations,
     meta: {
