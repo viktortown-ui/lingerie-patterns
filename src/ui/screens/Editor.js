@@ -135,6 +135,10 @@ export function Editor({
     seamHighlight: storedDraft?.preview?.seamHighlight,
   };
 
+  // Created later below. Declared here to avoid a temporal-dead-zone crash
+  // when preview callbacks fire during the initial render.
+  let paperSelect = null;
+
   const preview = Preview({
     getDraft: () => draft,
     getSummary: measurementsSummary,
@@ -247,7 +251,7 @@ export function Editor({
   const exportPdfButton = createEl("button", { text: t("editor.downloadPdf") });
   const paperLabel = createEl("span", { className: "muted", text: t("editor.paperSize") });
   const initialPaperSize = storedDraft?.paperSize || state.paperSize || "A4";
-  const paperSelect = createEl("select", {
+  paperSelect = createEl("select", {
     attrs: { value: initialPaperSize },
   });
   [
@@ -339,7 +343,7 @@ export function Editor({
 
     const { data } = pdfExport(draft, {
       marginMm: 10,
-      paperSize: paperSelect.value || state.paperSize || "A4",
+      paperSize: paperSelect?.value || state.paperSize || "A4",
       resolveText: resolveTextEn,
       info: {
         moduleName: infoModuleName,
