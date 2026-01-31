@@ -18,7 +18,18 @@ const draft = pantiesModule.draft(
 }
 
 {
-  const { data, pageCount } = pdfExport(draft, { marginMm: 10, paperSize: "A4" });
+  const { data, pageCount } = pdfExport(draft, {
+    marginMm: 10,
+    paperSize: "A4",
+    info: {
+      moduleName: "Panties Basic",
+      optionsSummary: "Style: Classic, Seam allowance: 0mm",
+    },
+    labels: {
+      patternLabel: "Pattern",
+      optionsLabel: "Options",
+    },
+  });
   assert.ok(data instanceof Blob);
   assert.ok(data.size > 0);
   assert.ok(pageCount > 0);
@@ -27,6 +38,9 @@ const draft = pantiesModule.draft(
   assert.ok(pdfText.includes("100mm"));
   assert.ok(pdfText.includes("GLUE LINE"));
   assert.ok(pdfText.includes("Assembly Map"));
+  assert.ok(pdfText.includes("Pattern: Panties Basic") || !pdfText.includes("module.panties_basic.name"));
+  assert.ok(pdfText.includes("Options: Style: Classic"));
+  assert.ok(pdfText.includes("Seam allowance: 0mm"));
   assert.ok(/^[\x00-\x7F]*$/.test(pdfText));
 }
 
