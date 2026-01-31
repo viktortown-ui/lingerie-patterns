@@ -15,6 +15,12 @@ function mergeBounds(paths) {
   return { minX, minY, maxX, maxY };
 }
 
+function panelBounds(panel) {
+  const panelPaths = panel?.paths ? Object.values(panel.paths) : [];
+  if (!panelPaths.length) return null;
+  return mergeBounds(panelPaths);
+}
+
 function pathToPdf(path, unitScale) {
   const parts = [];
   path.segments.forEach((segment) => {
@@ -42,7 +48,8 @@ function pathToPdf(path, unitScale) {
 
 function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
   const mark = Units.toPtFromMm(4);
-  const cross = Units.toPtFromMm(3);
+  const cross = Units.toPtFromMm(5);
+  const diamond = Units.toPtFromMm(4);
   const corners = [
     { x: marginPt, y: marginPt },
     { x: marginPt + contentWidthPt, y: marginPt },
@@ -50,12 +57,20 @@ function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
     { x: marginPt + contentWidthPt, y: marginPt + contentHeightPt },
   ];
   const crosses = corners
-    .map((corner) =>
-      [
+    .map((corner) => {
+      const diamondPath = [
+        `${corner.x} ${corner.y - diamond} m`,
+        `${corner.x + diamond} ${corner.y} l`,
+        `${corner.x} ${corner.y + diamond} l`,
+        `${corner.x - diamond} ${corner.y} l`,
+        "h",
+      ].join(" ");
+      return [
         `${corner.x - cross} ${corner.y} m ${corner.x + cross} ${corner.y} l`,
         `${corner.x} ${corner.y - cross} m ${corner.x} ${corner.y + cross} l`,
-      ].join("\n")
-    )
+        diamondPath,
+      ].join("\n");
+    })
     .join("\n");
   const midpoints = [
     { x: marginPt + contentWidthPt / 2, y: marginPt },
@@ -82,6 +97,127 @@ function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
     `${contentWidthPt + marginPt} ${contentHeightPt + marginPt - mark} m ${contentWidthPt + marginPt} ${contentHeightPt + marginPt} l`,
     crosses,
     midCrosses,
+  ].join("\n");
+}
+
+function tileTrimLines({ marginPt, contentWidthPt, contentHeightPt, overlapPt }) {
+  const cutLine = `${marginPt} ${marginPt} ${contentWidthPt} ${contentHeightPt} re`;
+  const glueLine = `${marginPt + overlapPt} ${marginPt + overlapPt} ${contentWidthPt - 2 * overlapPt} ${contentHeightPt - 2 * overlapPt} re`;
+  return { cutLine, glueLine };
+}
+
+function headerFooter({
+  patternTitle,
+  tileId,
+  pageNumber,
+  pageCount,
+  paperSize,
+  pageWidthPt,
+  pageHeightPt,
+  marginPt,
+}) {
+  const headerText = sanitizePdfText(patternTitle || "Pattern");
+  const footerText = sanitizePdfText(`Tile ${tileId} | Page ${pageNumber}/${pageCount} | ${paperSize}`);
+  return [
+    "BT",
+    "/F1 8 Tf",
+    `${marginPt} ${Units.toPtFromMm(6)} Td`,
+    `(${headerText.replace(/[()]/g, "")}) Tj`,
+    "ET",
+    "BT",
+    "/F1 8 Tf",
+    `${marginPt} ${pageHeightPt - Units.toPtFromMm(6)} Td`,
+    `(${footerText.replace(/[()]/g, "")}) Tj`,
+    "ET",
+  ].join("\n");
+}
+
+function assemblyMap({ rows, cols, marginPt, pageWidthPt }) {
+  const mapWidth = Units.toPtFromMm(42);
+  const mapHeight = Units.toPtFromMm(42);
+  const mapX = pageWidthPt - marginPt - mapWidth;
+  const mapY = marginPt;
+  const cellWidth = mapWidth / cols;
+  const cellHeight = mapHeight / rows;
+  const commands = [
+    "0.3 w",
+    `${mapX} ${mapY} ${mapWidth} ${mapHeight} re`,
+  ];
+  for (let col = 1; col < cols; col += 1) {
+    const x = mapX + cellWidth * col;
+    commands.push(`${x} ${mapY} m ${x} ${mapY + mapHeight} l`);
+  }
+  for (let row = 1; row < rows; row += 1) {
+    const y = mapY + cellHeight * row;
+    commands.push(`${mapX} ${y} m ${mapX + mapWidth} ${y} l`);
+  }
+  commands.push("S");
+  commands.push(
+    "BT",
+    "/F1 7 Tf",
+    `${mapX} ${mapY - Units.toPtFromMm(3)} Td`,
+    "(Assembly Map) Tj",
+    "ET"
+  );
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const label = `R${row + 1}C${col + 1}`;
+      const x = mapX + cellWidth * col + Units.toPtFromMm(2);
+      const y = mapY + cellHeight * row + Units.toPtFromMm(6);
+      commands.push("BT");
+      commands.push("/F1 6 Tf");
+      commands.push(`${x} ${y} Td`);
+      commands.push(`(${label}) Tj`);
+      commands.push("ET");
+    }
+  }
+  return commands.join("\n");
+}
+
+function titleBlockCommands({ draftMeta, panel, unitScale }) {
+  const bounds = panelBounds(panel);
+  if (!bounds) return "";
+  const blockWidth = Units.toPtFromMm(48);
+  const padding = Units.toPtFromMm(3);
+  const fontSize = Units.toPtFromMm(7);
+  const lineHeight = fontSize * 1.2;
+  const lines = [];
+  const pieceName = panel.name || panel.id || "Piece";
+  lines.push(`Piece: ${pieceName}`);
+  if (panel.cutQty) lines.push(`Cut: ${panel.cutQty}`);
+  if (panel.material) lines.push(`Material: ${panel.material}`);
+  const moduleId = draftMeta?.moduleId || "module";
+  const moduleVersion = draftMeta?.moduleVersion || "0.0";
+  lines.push(`Module: ${moduleId} v${moduleVersion}`);
+  const seamValue = Number.isFinite(draftMeta?.seamAllowanceMm) ? `${draftMeta.seamAllowanceMm}mm` : "0mm";
+  lines.push(`Seam allowance: ${seamValue}`);
+  const blockHeight = padding * 2 + lines.length * lineHeight;
+  const x = bounds.maxX * unitScale + Units.toPtFromMm(6);
+  const y = bounds.minY * unitScale + Units.toPtFromMm(6);
+  const rect = `${x} ${y} ${blockWidth} ${blockHeight} re`;
+  const textLines = lines
+    .map((line, index) => {
+      const textX = x + padding;
+      const textY = y + padding + lineHeight * (index + 0.8);
+      return [
+        "BT",
+        "/F1 7 Tf",
+        `${textX} ${textY} Td`,
+        `(${sanitizePdfText(line).replace(/[()]/g, "")}) Tj`,
+        "ET",
+      ].join("\n");
+    })
+    .join("\n");
+  return [
+    "0.8 w",
+    "0.9 0.9 0.9 rg",
+    rect,
+    "f",
+    "0 0 0 rg",
+    "0.4 w",
+    rect,
+    "S",
+    textLines,
   ].join("\n");
 }
 
@@ -152,6 +288,7 @@ function annotationPaths(annotations, unitScale) {
   const arrowSize = Units.toPtFromMm(3);
   const arrowAngle = Math.PI / 6;
   const parts = [];
+  const dashedParts = [];
 
   annotations.forEach((anno) => {
     if (anno.type === "grainline") {
@@ -175,10 +312,36 @@ function annotationPaths(annotations, unitScale) {
       parts.push(`${x - size} ${y} m ${x + size} ${y} l`);
       parts.push(`${x} ${y - size} m ${x} ${y + size} l`);
     }
+    if (anno.type === "foldline") {
+      const x1 = anno.start.x * unitScale;
+      const y1 = anno.start.y * unitScale;
+      const x2 = anno.end.x * unitScale;
+      const y2 = anno.end.y * unitScale;
+      dashedParts.push(`${x1} ${y1} m ${x2} ${y2} l`);
+    }
+    if (anno.type === "control") {
+      const x = anno.point.x * unitScale;
+      const y = anno.point.y * unitScale;
+      const size = Units.toPtFromMm(2);
+      parts.push(`${x - size} ${y} m ${x + size} ${y} l`);
+      parts.push(`${x} ${y - size} m ${x} ${y + size} l`);
+    }
   });
 
-  if (!parts.length) return "";
-  return `${parts.join("\n")}\nS`;
+  if (!parts.length && !dashedParts.length) return "";
+  const commands = [];
+  if (parts.length) {
+    commands.push(parts.join("\n"));
+    commands.push("S");
+  }
+  if (dashedParts.length) {
+    commands.push("q");
+    commands.push("[4 2] 0 d");
+    commands.push(dashedParts.join("\n"));
+    commands.push("S");
+    commands.push("Q");
+  }
+  return commands.join("\n");
 }
 
 function labelCommands({
@@ -212,7 +375,8 @@ function labelCommands({
     commands.push("BT");
     const labelText = sanitizePdfText(resolveLabelText(anno.text, resolveText));
     if (!labelText) return;
-    commands.push("/F1 8 Tf");
+    const fontSize = anno.kind === "edge" ? 7 : 8;
+    commands.push(`/F1 ${fontSize} Tf`);
     commands.push(`${pageX} ${pageY} Td`);
     commands.push(`(${String(labelText).replace(/[()]/g, "")}) Tj`);
     commands.push("ET");
@@ -293,13 +457,16 @@ export function pdfExport(draft, options = {}) {
   const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths(pathEntries));
   const cutLineWidth = Units.toPtFromMm(0.6);
   const seamLineWidth = Units.toPtFromMm(0.35);
+  const overlapPt = Units.toPtFromMm(5);
   const patternLabel = labels.patternLabel || "Pattern";
   const generatedLabel = labels.generatedLabel || "Generated";
   const optionsLabel = labels.optionsLabel || "Options";
   const seamAllowanceLabel = labels.seamAllowanceLabel || "Seam allowance";
+  const patternTitle = resolveLabelText(draft.meta?.title, resolveText) || "Pattern";
 
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
+      const pageNumber = row * cols + col + 1;
       const offsetMmX = col * contentWidthMm;
       const offsetMmY = row * contentHeightMm;
       const offsetPtX = Units.toPtFromMm(offsetMmX);
@@ -318,7 +485,12 @@ export function pdfExport(draft, options = {}) {
         })
         .join("\n");
       const annotationCommands = annotationPaths(draft.annotations || [], unitScale);
+      const titleBlocks = (draft.panels || [])
+        .map((panel) => titleBlockCommands({ draftMeta: draft.meta, panel, unitScale }))
+        .filter(Boolean)
+        .join("\n");
       const marks = assemblyMarks({ marginPt, contentWidthPt, contentHeightPt });
+      const trimLines = tileTrimLines({ marginPt, contentWidthPt, contentHeightPt, overlapPt });
       const calibration =
         row === 0 && col === 0 ? calibrationMark({ marginPt, pageHeightPt: pageSizePt.height }) : "";
       const pageLabel = `R${row + 1}C${col + 1}`;
@@ -385,6 +557,27 @@ export function pdfExport(draft, options = {}) {
               "ET",
             ].join("\n")
           : "";
+      const headerFooterBlock = headerFooter({
+        patternTitle,
+        tileId: pageLabel,
+        pageNumber,
+        pageCount: rows * cols,
+        paperSize: options.paperSize || "A4",
+        pageWidthPt: pageSizePt.width,
+        pageHeightPt: pageSizePt.height,
+        marginPt,
+      });
+      const glueLabel = [
+        "BT",
+        "/F1 7 Tf",
+        `${marginPt + overlapPt + Units.toPtFromMm(2)} ${marginPt + Units.toPtFromMm(4)} Td`,
+        "(GLUE LINE) Tj",
+        "ET",
+      ].join("\n");
+      const assemblyMapBlock =
+        row === 0 && col === 0
+          ? assemblyMap({ rows, cols, marginPt, pageWidthPt: pageSizePt.width })
+          : "";
 
       const stream = [
         "q",
@@ -394,19 +587,27 @@ export function pdfExport(draft, options = {}) {
         "0 0 0 RG",
         pathCommands,
         annotationCommands,
+        titleBlocks,
         "Q",
         "q",
-        "0 0 0 rg",
-        "0.5 w",
+        "0.2 0.2 0.2 rg",
+        "0.6 w",
         marks,
         "S",
+        "0.6 0.6 0.6 RG",
+        "0.4 w",
+        trimLines.cutLine,
+        "S",
+        "0.1 0.4 0.9 RG",
+        "0.6 w",
+        trimLines.glueLine,
+        "S",
+        "0 0 0 rg",
         calibration,
         instructions,
-        "BT",
-        "/F1 10 Tf",
-        `${pageSizePt.width - marginPt - Units.toPtFromMm(30)} ${pageSizePt.height - marginPt - 12} Td`,
-        `(${pageLabel}) Tj`,
-        "ET",
+        headerFooterBlock,
+        glueLabel,
+        assemblyMapBlock,
         labelText,
         infoBlock,
         legendBlock,

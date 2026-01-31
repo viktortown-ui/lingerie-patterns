@@ -88,6 +88,7 @@ function renderAnnotations(
     labelStrokeWidth,
     grainlineStrokeWidth,
     notchRadius,
+    controlSize,
     showLabels,
     formatFontSize,
     formatLength,
@@ -105,18 +106,123 @@ function renderAnnotations(
           notchRadius
         )}" fill="#333" />`;
       }
+      if (anno.type === "foldline") {
+        const midX = (anno.start.x + anno.end.x) / 2;
+        const midY = (anno.start.y + anno.end.y) / 2;
+        const label = showLabels ? resolveLabelText(anno.label, resolveText) : "";
+        return [
+          `<line x1="${anno.start.x}" y1="${anno.start.y}" x2="${anno.end.x}" y2="${anno.end.y}" stroke="#666" stroke-width="${formatLength(
+            grainlineStrokeWidth
+          )}" stroke-dasharray="${formatLength(grainlineStrokeWidth * 6)} ${formatLength(
+            grainlineStrokeWidth * 4
+          )}" />`,
+          label
+            ? `<text x="${midX}" y="${midY}" font-size="${formatFontSize(
+                labelFontSize * 0.9
+              )}" fill="#444" text-anchor="middle" dominant-baseline="middle">${label}</text>`
+            : "",
+        ].join("\n");
+      }
+      if (anno.type === "control") {
+        const size = formatLength(controlSize);
+        return [
+          `<circle cx="${anno.point.x}" cy="${anno.point.y}" r="${size}" fill="none" stroke="#555" stroke-width="${formatLength(
+            grainlineStrokeWidth
+          )}" />`,
+          `<line x1="${anno.point.x - controlSize}" y1="${anno.point.y}" x2="${anno.point.x + controlSize}" y2="${anno.point.y}" stroke="#555" stroke-width="${formatLength(
+            grainlineStrokeWidth
+          )}" />`,
+          `<line x1="${anno.point.x}" y1="${anno.point.y - controlSize}" x2="${anno.point.x}" y2="${anno.point.y + controlSize}" stroke="#555" stroke-width="${formatLength(
+            grainlineStrokeWidth
+          )}" />`,
+        ].join("\n");
+      }
       if (anno.type === "label") {
         if (!showLabels) return "";
         const text = resolveLabelText(anno.text, resolveText);
+        const fontSize = anno.kind === "edge" ? labelFontSize * 0.9 : labelFontSize;
+        const fill = anno.kind === "edge" ? "#0b4b8a" : "#111";
         return `<text x="${anno.point.x}" y="${anno.point.y}" font-size="${formatFontSize(
-          labelFontSize
-        )}" fill="#111" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fff" stroke-width="${formatLength(
+          fontSize
+        )}" fill="${fill}" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fff" stroke-width="${formatLength(
           labelStrokeWidth
         )}" stroke-linejoin="round">${text}</text>`;
       }
       return "";
     })
     .join("\n");
+}
+
+function panelBounds(panel) {
+  const paths = panel?.paths ? Object.values(panel.paths) : [];
+  if (!paths.length) return null;
+  return mergeBounds(paths.map((path) => path.bounds()));
+}
+
+function buildTitleBlock(panel, draftMeta, resolveText, labels, unit) {
+  const pieceName = panel.name || panel.id || labels.pieceLabel || "Piece";
+  const lines = [`${labels.pieceLabel || "Piece"}: ${pieceName}`];
+  if (panel.cutQty) lines.push(`${labels.cutLabel || "Cut"}: ${panel.cutQty}`);
+  if (panel.material) lines.push(`${labels.materialLabel || "Material"}: ${panel.material}`);
+  const moduleId = draftMeta?.moduleId || "module";
+  const moduleVersion = draftMeta?.moduleVersion || "0.0";
+  lines.push(`${labels.moduleLabel || "Module"}: ${moduleId} v${moduleVersion}`);
+  const seamValue = Number.isFinite(draftMeta?.seamAllowanceMm) ? `${draftMeta.seamAllowanceMm}mm` : "0mm";
+  lines.push(`${labels.seamAllowanceLabel || "Seam allowance"}: ${seamValue}`);
+  return lines.map((line) => resolveLabelText(line, resolveText));
+}
+
+function renderTitleBlocks({
+  panels,
+  draftMeta,
+  resolveText,
+  labels,
+  unit,
+  formatFontSize,
+  formatLength,
+}) {
+  const blockWidth = Units.fromMm(42, unit);
+  const padding = Units.fromMm(2.5, unit);
+  const fontSize = Units.fromMm(2.6, unit);
+  const lineHeight = fontSize * 1.25;
+  const blocks = [];
+  const boundsList = [];
+
+  panels.forEach((panel) => {
+    const bounds = panelBounds(panel);
+    if (!bounds) return;
+    const lines = buildTitleBlock(panel, draftMeta, resolveText, labels, unit).filter(Boolean);
+    if (!lines.length) return;
+    const blockHeight = padding * 2 + lines.length * lineHeight;
+    let x = bounds.maxX + Units.fromMm(6, unit);
+    let y = bounds.minY + Units.fromMm(6, unit);
+
+    const textSpans = lines
+      .map((line, index) => {
+        const textY = y + padding + lineHeight * (index + 0.8);
+        return `<text x="${x + padding}" y="${textY}" font-size="${formatFontSize(
+          fontSize
+        )}" fill="#111">${line}</text>`;
+      })
+      .join("\n");
+
+    blocks.push(
+      [
+        `<rect x="${x}" y="${y}" width="${blockWidth}" height="${blockHeight}" fill="#fff" stroke="#666" stroke-width="${formatLength(
+          Units.fromMm(0.2, unit)
+        )}" rx="${formatLength(Units.fromMm(1, unit))}" />`,
+        textSpans,
+      ].join("\n")
+    );
+    boundsList.push({
+      minX: x,
+      minY: y,
+      maxX: x + blockWidth,
+      maxY: y + blockHeight,
+    });
+  });
+
+  return { markup: blocks.join("\n"), bounds: boundsList };
 }
 
 export function svgExport(draft, measurementsSummary = [], options = {}) {
@@ -142,12 +248,30 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const marginTop = Units.fromMm(10, unit);
   const marginBottom = Units.fromMm(35, unit);
 
-  const exportBounds = {
+  let exportBounds = {
     minX: geometryBounds.minX - marginLeft,
     minY: geometryBounds.minY - marginTop,
     maxX: geometryBounds.maxX + marginRight,
     maxY: geometryBounds.maxY + marginBottom,
   };
+  const titleBlocks = renderTitleBlocks({
+    panels: draft.panels || [],
+    draftMeta: meta,
+    resolveText,
+    labels,
+    unit,
+    formatFontSize,
+    formatLength,
+  });
+  if (titleBlocks.bounds.length) {
+    const blockBounds = mergeBounds(titleBlocks.bounds);
+    exportBounds = {
+      minX: Math.min(exportBounds.minX, blockBounds.minX - Units.fromMm(2, unit)),
+      minY: Math.min(exportBounds.minY, blockBounds.minY - Units.fromMm(2, unit)),
+      maxX: Math.max(exportBounds.maxX, blockBounds.maxX + Units.fromMm(2, unit)),
+      maxY: Math.max(exportBounds.maxY, blockBounds.maxY + Units.fromMm(2, unit)),
+    };
+  }
   const width = exportBounds.maxX - exportBounds.minX;
   const height = exportBounds.maxY - exportBounds.minY;
   const viewBox = `${exportBounds.minX} ${exportBounds.minY} ${width} ${height}`;
@@ -201,6 +325,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     labelStrokeWidth: Units.fromMm(0.3, unit),
     grainlineStrokeWidth: Units.fromMm(0.2, unit),
     notchRadius: Units.fromMm(0.2, unit),
+    controlSize: Units.fromMm(0.6, unit),
     showLabels,
     formatFontSize,
     formatLength,
@@ -270,6 +395,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   <rect x="${exportBounds.minX}" y="${exportBounds.minY}" width="${width}" height="${height}" fill="white" />
   ${pathMarkup}
   ${annotationMarkup}
+  ${titleBlocks.markup}
   <g id="calibration-50mm" stroke="#d11" stroke-width="${formatLength(
     Units.fromMm(0.4, unit)
   )}" fill="none">

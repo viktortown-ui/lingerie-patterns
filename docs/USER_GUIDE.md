@@ -28,10 +28,11 @@ Use **Toggle theme** in the top bar to switch between light and dark modes. The 
 ## Export tips
 - The SVG includes red **50mm** and **100mm** calibration marks. Verify the printed size before cutting.
 - The PDF output supports **A4 tiled (print at home)** and **A3 tiled (fewer pages)**.
-- Print PDFs at **100% / Actual size** and disable “Fit to page”.
-- Measure the **50mm** and **100mm** marks with a ruler before cutting.
-- Each page shows an ID like **R1C1** to help assemble tiles.
-- Align pages using the page ID and the corner + midpoint alignment marks.
+- Print PDFs at **100% / Actual size** and disable “Fit to page” / “Scale to fit”.
+- Measure the **50mm** and **100mm** marks with a ruler before cutting. Reprint if the scale is off.
+- Each page shows an ID like **R1C1** plus a small **Assembly Map** to help assemble tiles.
+- Use the **cut line** as the trimming guide, then align pages on the highlighted **GLUE LINE** overlap.
+- Match the page ID and the stronger corner/edge registration marks before taping.
 - For screen tracing, use **Calibrate screen** in the preview toolbar to match the **100mm** line to a ruler.
 
 ## Preview labels

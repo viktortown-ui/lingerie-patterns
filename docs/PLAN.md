@@ -127,6 +127,20 @@
 - Export shows cut (solid) + seam (dashed) lines when enabled.
 - PDF streams contain only ASCII.
 
+### E) Commercial PDF export polish
+- [ ] Add cut + glue/overlap trim system for tiled PDFs.
+- [ ] Add stronger registration marks (crosses + diamonds) at corners/edges.
+- [ ] Add per-tile header/footer with pattern title, tile ID, page count, and paper size.
+- [ ] Add an Assembly Map box that shows all tile IDs.
+- [ ] Add title blocks per piece in SVG + PDF (name, cut qty, material, module version, seam allowance).
+- [ ] Ensure annotations export notch/grainline/foldline/control points consistently and edge labels are supported.
+
+**Acceptance criteria**
+- Tiles show a thin cut line, a highlighted glue line labeled “GLUE LINE”, and a visible Assembly Map.
+- Each tile includes a header/footer with the required metadata and page numbering.
+- Title blocks never overlap geometry and include seam allowance text.
+- PDF output remains ASCII-only English.
+
 ### Mobile QA checklist
 - [ ] Android Chrome: export PDF download saves file.
 - [ ] iOS Safari: export PDF opens reliably, fallback hint appears if blocked.
