@@ -7,6 +7,7 @@ import { resolveText, t } from "../i18n/i18n.js";
 export function Preview({ getDraft, getSummary }) {
   const wrapper = createEl("div", { className: "preview" });
   const storageKey = "lingerie-preview-scale-labels";
+  const calibrationStorageKey = "lingerie-screen-calibration";
 
   const toolbar = createEl("div", { className: "preview-toolbar" });
   const fitButton = createEl("button", {
@@ -33,6 +34,33 @@ export function Preview({ getDraft, getSummary }) {
   const labelToggle = createEl("label", { className: "toggle preview-label-toggle" });
   const labelCheckbox = createEl("input", { attrs: { type: "checkbox" } });
   const labelText = createEl("span", { text: t("preview.scaleLabels") });
+  const calibrateButton = createEl("button", {
+    className: "secondary",
+    text: t("preview.calibrateScreen"),
+    attrs: { type: "button" },
+  });
+  const calibrationControls = createEl("div", { className: "preview-calibration-controls" });
+  const calibrationLabel = createEl("span", { text: t("preview.screenScale") });
+  const calibrationValue = createEl("span", { className: "preview-calibration-value", text: "100%" });
+  const calibrationDown = createEl("button", {
+    className: "secondary",
+    text: "−",
+    attrs: { type: "button", title: t("preview.decreaseScale") },
+  });
+  const calibrationUp = createEl("button", {
+    className: "secondary",
+    text: "+",
+    attrs: { type: "button", title: t("preview.increaseScale") },
+  });
+  const calibrationSlider = createEl("input", {
+    attrs: {
+      type: "range",
+      min: "0.7",
+      max: "1.3",
+      step: "0.01",
+      value: "1",
+    },
+  });
   const storedScaleLabels = (() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -47,19 +75,52 @@ export function Preview({ getDraft, getSummary }) {
 
   const viewport = createEl("div", { className: "preview-viewport" });
   const labelLayer = createEl("div", { className: "preview-label-layer" });
+  const calibrationOverlay = createEl("div", { className: "preview-calibration-overlay" });
+  const calibrationLine = createEl("div", { className: "preview-calibration-line" });
+  const calibrationLineLabel = createEl("div", {
+    className: "preview-calibration-caption",
+    text: t("export.calibrationLarge"),
+  });
+  const calibrationSquare = createEl("div", { className: "preview-calibration-square" });
+  const calibrationSquareLabel = createEl("div", {
+    className: "preview-calibration-caption",
+    text: t("export.calibrationLarge"),
+  });
   const infoPanel = createEl("div", { className: "preview-info" });
   const infoTitle = createEl("div", { className: "preview-info-title" });
   const infoScale = createEl("div", { className: "preview-info-line" });
   const infoSummary = createEl("div", { className: "preview-info-line" });
   const infoLegend = createEl("div", { className: "preview-info-line" });
 
-  toolbar.append(fitButton, zoomOutButton, zoomInButton, resetButton, zoomLabel, labelToggle);
+  calibrationControls.append(
+    calibrationLabel,
+    calibrationDown,
+    calibrationUp,
+    calibrationSlider,
+    calibrationValue
+  );
+  calibrationControls.hidden = true;
+  calibrationOverlay.append(calibrationLineLabel, calibrationLine, calibrationSquareLabel, calibrationSquare);
+  calibrationOverlay.hidden = true;
+
+  toolbar.append(
+    fitButton,
+    zoomOutButton,
+    zoomInButton,
+    resetButton,
+    zoomLabel,
+    labelToggle,
+    calibrateButton
+  );
   infoPanel.append(infoTitle, infoScale, infoSummary, infoLegend);
-  wrapper.append(toolbar, viewport, infoPanel);
+  wrapper.append(toolbar, calibrationControls, viewport, infoPanel);
 
   let svgEl = null;
   let viewBoxSize = null;
   let pxPerUnit = 1;
+  let basePxPerUnit = 1;
+  let calibrationMultiplier = 1;
+  let calibrationActive = false;
 
   // Zoom is absolute: 1.0 = 100% of SVG units
   let zoomFactor = 1;
@@ -70,9 +131,48 @@ export function Preview({ getDraft, getSummary }) {
   let labelEntries = [];
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const clampCalibration = (value) => clamp(value, 0.7, 1.3);
+
+  const loadCalibration = () => {
+    try {
+      const stored = Number(localStorage.getItem(calibrationStorageKey));
+      if (Number.isFinite(stored) && stored > 0) {
+        return stored;
+      }
+    } catch {
+      // ignore storage failures
+    }
+    return 1;
+  };
+
+  const persistCalibration = (value) => {
+    try {
+      localStorage.setItem(calibrationStorageKey, String(value));
+    } catch {
+      // ignore storage failures
+    }
+  };
 
   const updateZoomLabel = () => {
     zoomLabel.textContent = `${Math.round(zoomFactor * 100)}%`;
+  };
+
+  const updateCalibrationLabel = () => {
+    calibrationValue.textContent = `${Math.round(calibrationMultiplier * 100)}%`;
+  };
+
+  const updateCalibrationOverlay = () => {
+    if (!calibrationActive) {
+      calibrationOverlay.hidden = true;
+      return;
+    }
+    const unit = getDraft()?.meta?.unit || "cm";
+    const sizeUnits = Units.fromMm(100, unit);
+    const sizePx = sizeUnits * basePxPerUnit * calibrationMultiplier;
+    calibrationLine.style.width = `${sizePx}px`;
+    calibrationSquare.style.width = `${sizePx}px`;
+    calibrationSquare.style.height = `${sizePx}px`;
+    calibrationOverlay.hidden = false;
   };
 
   const parseViewBox = (svg) => {
@@ -104,6 +204,20 @@ export function Preview({ getDraft, getSummary }) {
     positionLabels();
   };
 
+  const updatePreviewScale = () => {
+    const draft = getDraft();
+    const unit = draft?.meta?.unit || "cm";
+    basePxPerUnit = Units.toMm(1, unit) * (96 / 25.4);
+    const multiplier = calibrationActive ? calibrationMultiplier : 1;
+    pxPerUnit = basePxPerUnit * multiplier;
+    updateCalibrationOverlay();
+    if (fitMode) {
+      applyFit();
+    } else {
+      applyZoom();
+    }
+  };
+
   const setZoomFactor = (next) => {
     fitMode = false;
     zoomFactor = clamp(next, minZoom, maxZoom);
@@ -133,6 +247,36 @@ export function Preview({ getDraft, getSummary }) {
       // ignore storage failures
     }
     render();
+  });
+
+  calibrationMultiplier = loadCalibration();
+  calibrationSlider.value = String(calibrationMultiplier);
+  updateCalibrationLabel();
+
+  const setCalibrationMultiplier = (value) => {
+    calibrationMultiplier = clampCalibration(value);
+    calibrationSlider.value = String(calibrationMultiplier);
+    updateCalibrationLabel();
+    persistCalibration(calibrationMultiplier);
+    updatePreviewScale();
+  };
+
+  calibrationDown.addEventListener("click", () => {
+    setCalibrationMultiplier(calibrationMultiplier - 0.02);
+  });
+  calibrationUp.addEventListener("click", () => {
+    setCalibrationMultiplier(calibrationMultiplier + 0.02);
+  });
+  calibrationSlider.addEventListener("input", (event) => {
+    setCalibrationMultiplier(Number(event.target.value));
+  });
+
+  calibrateButton.addEventListener("click", () => {
+    calibrationActive = !calibrationActive;
+    calibrationControls.hidden = !calibrationActive;
+    calibrationOverlay.hidden = !calibrationActive;
+    calibrateButton.classList.toggle("is-active", calibrationActive);
+    updatePreviewScale();
   });
 
   // Ctrl/⌘ + wheel zoom (keeps normal scroll otherwise)
@@ -280,6 +424,7 @@ export function Preview({ getDraft, getSummary }) {
       infoPanel.hidden = true;
       labelCheckbox.disabled = true;
       labelLayer.hidden = true;
+      calibrationOverlay.hidden = true;
       return;
     }
     labelCheckbox.disabled = false;
@@ -317,16 +462,21 @@ export function Preview({ getDraft, getSummary }) {
 
     viewport.appendChild(nextSvg);
     viewport.appendChild(labelLayer);
+    viewport.appendChild(calibrationOverlay);
     svgEl = nextSvg;
     svgEl.querySelectorAll("path,line,polyline,polygon").forEach((el) => {
       el.setAttribute("vector-effect", "non-scaling-stroke");
     });
 
-    const unit = draft.meta?.unit || "cm";
-    pxPerUnit = Units.toMm(1, unit) * (96 / 25.4);
+    updatePreviewScale();
     const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths(collectPaths(draft)));
-    const seamAllowanceLabel = seamAllowanceApplied ? t("export.seamAllowanceOn") : t("export.seamAllowanceOff");
-    const scaleInfo = `${t("export.unitsLabel")}: ${unit} | ${t("export.seamAllowanceLabel")}: ${seamAllowanceLabel}`;
+    const seamAllowanceLabel =
+      seamAllowanceApplied && draft.meta?.seamAllowanceMm
+        ? `${draft.meta.seamAllowanceMm}mm`
+        : t("export.seamAllowanceOff");
+    const scaleInfo = `${t("export.unitsLabel")}: ${draft.meta?.unit || "cm"} | ${t(
+      "export.seamAllowanceLabel"
+    )}: ${seamAllowanceLabel}`;
     const summaryText = getSummary().join(", ");
     const titleText = resolveText(draft.meta?.title) || t("export.patternTitle");
 
@@ -339,12 +489,6 @@ export function Preview({ getDraft, getSummary }) {
     infoPanel.hidden = false;
 
     renderOverlayLabels(draft);
-
-    if (fitMode) {
-      applyFit();
-    } else {
-      applyZoom();
-    }
 
     positionLabels();
   };

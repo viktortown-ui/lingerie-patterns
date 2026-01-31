@@ -77,14 +77,16 @@ export const schema = {
         ru: "Добавить припуск на шов вокруг детали.",
       },
       choices: [
-        { label: { en: "Off", ru: "Выкл." }, value: "off" },
-        { label: { en: "On", ru: "Вкл." }, value: "on" },
+        { label: { en: "Off", ru: "Выкл." }, value: 0 },
+        { label: { en: "6mm", ru: "6мм" }, value: 6 },
+        { label: { en: "8mm", ru: "8мм" }, value: 8 },
+        { label: { en: "10mm", ru: "10мм" }, value: 10 },
       ],
-      default: "off",
+      default: 6,
     },
   ],
   optionDefaults: {
     style: "classic",
-    seamAllowance: "off",
+    seamAllowance: 6,
   },
 };

@@ -9,6 +9,7 @@ import { Preview } from "../components/Preview.js";
 import { Toast } from "../components/Toast.js";
 import { resolveText, t } from "../i18n/i18n.js";
 import { toggleTheme } from "../styles/theme.js";
+import { downloadBlob } from "../utils/download.js";
 import { upsertProfile, deleteProfile } from "../state/store.js";
 
 export function Editor({
@@ -80,28 +81,24 @@ export function Editor({
     return String(value);
   };
 
-  const downloadOrOpen = (url, filename) => {
-    const link = createEl("a", { attrs: { href: url, download: filename } });
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      window.open(url, "_blank");
+  const resolveSeamAllowanceLabel = () => {
+    const seamValue = Number(optionValues.seamAllowance ?? 0);
+    if (!Number.isFinite(seamValue) || seamValue <= 0) {
+      return t("export.seamAllowanceOff");
     }
-    window.setTimeout(() => {
-      URL.revokeObjectURL(url);
-      link.remove();
-    }, 1500);
+    return `${seamValue}mm`;
   };
 
-  const measurementsSummary = () =>
-    module.schema.fields.map((field) => {
+  const measurementsSummary = () => {
+    const measurements = module.schema.fields.map((field) => {
       const label = field.code
         ? `${resolveText(field.label)} (${field.code})`
         : resolveText(field.label);
       return `${label}: ${formValues[field.key]}${module.schema.unit}`;
     });
+    const seamSummary = `${t("export.seamAllowanceLabel")}: ${resolveSeamAllowanceLabel()}`;
+    return [...measurements, seamSummary];
+  };
 
   const preview = Preview({
     getDraft: () => draft,
@@ -199,6 +196,27 @@ export function Editor({
     if ((state.paperSize || "A4") === option.value) opt.selected = true;
     paperSelect.appendChild(opt);
   });
+  const paperHelp = createEl("div", { className: "helper-text", text: t("editor.paperHelp") });
+  const tracingHelp = createEl("div", { className: "helper-text", text: t("editor.tracingHelp") });
+  const paperGroup = createEl("div", { className: "action-group" });
+  paperGroup.append(paperLabel, paperSelect, paperHelp, tracingHelp);
+  const downloadHint = createEl("div", {
+    className: "helper-text",
+    text: "",
+  });
+  downloadHint.hidden = true;
+  const showDownloadHint = (() => {
+    let timeout = null;
+    return (message) => {
+      if (!message) return;
+      downloadHint.textContent = message;
+      downloadHint.hidden = false;
+      if (timeout) window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        downloadHint.hidden = true;
+      }, 6000);
+    };
+  })();
   const handlePaperChange = (event) => {
     onPaperSizeChange?.(String(event.target.value));
   };
@@ -221,8 +239,12 @@ export function Editor({
       },
     });
     const blob = new Blob([svg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    downloadOrOpen(url, `${module.id}.svg`);
+    downloadBlob({
+      blob,
+      filename: `${module.id}.svg`,
+      mimeType: "image/svg+xml",
+      onFallbackMessage: () => showDownloadHint(t("editor.downloadFallback")),
+    });
   });
 
   exportPdfButton.addEventListener("click", () => {
@@ -235,17 +257,11 @@ export function Editor({
           })
           .join(", ")
       : "No options selected";
-    const seamField = module.schema.fields.find((field) => field.key.toLowerCase().includes("seam"));
-    const seamValue = seamField ? `${formValues[seamField.key]}${module.schema.unit}` : null;
-    const seamOption = module.schema.options?.find((option) => option.key.toLowerCase().includes("seam"));
-    const seamOptionValue = seamOption ? optionValues[seamOption.key] : null;
-    const seamOptionLabel =
-      seamOptionValue === "on"
-        ? "On"
-        : seamOptionValue === "off"
-          ? "Off"
-          : seamOptionValue;
-    const seamSummary = seamValue || seamOptionLabel || "";
+    const seamAllowanceValue = Number(optionValues.seamAllowance ?? 0);
+    const seamSummary =
+      Number.isFinite(seamAllowanceValue) && seamAllowanceValue > 0
+        ? `${seamAllowanceValue}mm`
+        : "Off";
 
     const { data } = pdfExport(draft, {
       marginMm: 10,
@@ -268,11 +284,15 @@ export function Editor({
         seamAllowanceLabel: "Seam allowance",
       },
     });
-    const url = URL.createObjectURL(data);
-    downloadOrOpen(url, `${module.id}.pdf`);
+    downloadBlob({
+      blob: data,
+      filename: `${module.id}.pdf`,
+      mimeType: "application/pdf",
+      onFallbackMessage: () => showDownloadHint(t("editor.downloadFallback")),
+    });
   });
 
-  actionBar.append(paperLabel, paperSelect, exportSvgButton, exportPdfButton);
+  actionBar.append(paperGroup, exportSvgButton, exportPdfButton, downloadHint);
 
   sidebar.append(sidebarTitle, form.el, profileTitle, profileList, saveProfileButton);
   previewCard.append(preview.el);

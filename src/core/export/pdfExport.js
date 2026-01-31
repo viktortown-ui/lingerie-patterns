@@ -144,6 +144,10 @@ function resolveLabelText(value, resolveText) {
   return "";
 }
 
+function sanitizePdfText(text) {
+  return String(text).replace(/[^\x00-\x7F]/g, "");
+}
+
 function annotationPaths(annotations, unitScale) {
   const arrowSize = Units.toPtFromMm(3);
   const arrowAngle = Math.PI / 6;
@@ -206,7 +210,7 @@ function labelCommands({
     const pageX = xPt + marginPt - offsetPtX - minXPt;
     const pageY = pageHeightPt - (yPt + marginPt + offsetPtY + minYPt);
     commands.push("BT");
-    const labelText = resolveLabelText(anno.text, resolveText);
+    const labelText = sanitizePdfText(resolveLabelText(anno.text, resolveText));
     if (!labelText) return;
     commands.push("/F1 8 Tf");
     commands.push(`${pageX} ${pageY} Td`);
@@ -348,7 +352,12 @@ export function pdfExport(draft, options = {}) {
             `${marginPt} ${marginPt + Units.toPtFromMm(18)} Td`,
             infoLines
               .map((line, index) =>
-                [index > 0 ? "T*" : "", `(${line.replace(/[()]/g, "")}) Tj`].join(" ").trim()
+                [
+                  index > 0 ? "T*" : "",
+                  `(${sanitizePdfText(line).replace(/[()]/g, "")}) Tj`,
+                ]
+                  .join(" ")
+                  .trim()
               )
               .join("\n"),
             "ET",
@@ -361,7 +370,7 @@ export function pdfExport(draft, options = {}) {
               "BT",
               "/F1 8 Tf",
               `${marginPt} ${marginPt + Units.toPtFromMm(10)} Td`,
-              `(${info.legendText.replace(/[()]/g, "")}) Tj`,
+              `(${sanitizePdfText(info.legendText).replace(/[()]/g, "")}) Tj`,
               "ET",
             ].join("\n")
           : "";
@@ -372,7 +381,7 @@ export function pdfExport(draft, options = {}) {
               "BT",
               "/F1 8 Tf",
               `${marginPt} ${pageSizePt.height - marginPt - Units.toPtFromMm(10)} Td`,
-              `(${info.instructionText.replace(/[()]/g, "")}) Tj`,
+              `(${sanitizePdfText(info.instructionText).replace(/[()]/g, "")}) Tj`,
               "ET",
             ].join("\n")
           : "";

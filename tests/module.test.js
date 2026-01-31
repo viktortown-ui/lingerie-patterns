@@ -14,7 +14,7 @@ import pantiesModule from "../src/patterns/panties_basic/module.js";
 {
   const draft = pantiesModule.draft(
     { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-    { seamAllowance: "off", style: "classic" }
+    { seamAllowance: 0, style: "classic" }
   );
   assert.ok(draft.paths);
   assert.ok(draft.annotations);

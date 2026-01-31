@@ -6,7 +6,7 @@ import { pdfExport } from "../src/core/export/pdfExport.js";
 
 const draft = pantiesModule.draft(
   { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-  { seamAllowance: "off", style: "classic" }
+  { seamAllowance: 0, style: "classic" }
 );
 
 {
@@ -25,6 +25,17 @@ const draft = pantiesModule.draft(
   const pdfText = await data.text();
   assert.ok(pdfText.includes("50mm"));
   assert.ok(pdfText.includes("100mm"));
+  assert.ok(/^[\x00-\x7F]*$/.test(pdfText));
+}
+
+{
+  const seamDraft = pantiesModule.draft(
+    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
+    { seamAllowance: 6, style: "classic" }
+  );
+  const svg = svgExport(seamDraft, ["Test"]);
+  assert.ok(svg.includes("stroke-dasharray"));
+  assert.ok(svg.includes("Cut line / Stitch line"));
 }
 
 {

@@ -78,3 +78,56 @@
 - /docs/MODULE_API.md
 - /docs/USER_GUIDE.md
 - /sw.js
+
+## Phase 2 — Reliability + UX upgrades
+
+### A) Harden mobile download (SVG + PDF)
+- [ ] Create reusable `downloadBlob` helper with delayed revocation.
+- [ ] Add iOS Safari / WKWebView fallback (open in new tab or data URL).
+- [ ] Replace Editor download logic for SVG + PDF with helper.
+- [ ] Show inline message if popup is blocked.
+
+**Acceptance criteria**
+- Android Chrome saves `.pdf` from **Download PDF**.
+- Desktop Chrome/Edge saves `.pdf` and `.svg`.
+- iOS Safari reliably opens PDF (download if supported).
+- No more "revoke too fast" failures.
+
+### B) Paper / export UX clarification
+- [ ] Rename paper options to **A4 tiled (print at home)** and **A3 tiled (fewer pages)**.
+- [ ] Add help text for printing at 100% and verifying 100mm square.
+- [ ] Add screen tracing tip referencing calibration.
+- [ ] Update `docs/USER_GUIDE.md` with the same wording.
+
+**Acceptance criteria**
+- Export selector shows clarified labels.
+- Help text is visible under the paper selector.
+- User guide reflects the updated labels and tips.
+
+### C) Screen calibration mode
+- [ ] Add **Calibrate screen** button in preview toolbar.
+- [ ] Show 100mm calibration overlay with adjustable scale.
+- [ ] Persist scale multiplier to `localStorage` (`lingerie-screen-calibration`).
+- [ ] Apply multiplier only to preview rendering (exports unchanged).
+
+**Acceptance criteria**
+- Overlay matches a ruler after tuning.
+- Stored scale persists across reloads.
+- Fit/reset/zoom behavior still works.
+
+### D) Seam allowance options (explicit mm)
+- [ ] Replace seam allowance option with numeric mm values (0/6/8/10).
+- [ ] Convert mm → cm in drafting and store applied value in `meta`.
+- [ ] Ensure seam line is dashed and legend appears when enabled.
+- [ ] Add tests for seam dashed paths + legend text.
+- [ ] Add PDF ASCII-only test.
+
+**Acceptance criteria**
+- UI summary reads “Seam allowance: 6mm”.
+- Export shows cut (solid) + seam (dashed) lines when enabled.
+- PDF streams contain only ASCII.
+
+### Mobile QA checklist
+- [ ] Android Chrome: export PDF download saves file.
+- [ ] iOS Safari: export PDF opens reliably, fallback hint appears if blocked.
+- [ ] Desktop Chrome/Edge: SVG/PDF download works and preview zoom/labels unaffected.
