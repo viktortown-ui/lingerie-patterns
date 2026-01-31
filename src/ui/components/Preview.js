@@ -7,6 +7,7 @@ import { resolveText, t } from "../i18n/i18n.js";
 export function Preview({ getDraft, getSummary }) {
   const wrapper = createEl("div", { className: "preview" });
   const storageKey = "lingerie-preview-scale-labels";
+  const seamHighlightStorageKey = "lingerie-preview-seam-highlight";
   const calibrationStorageKey = "lingerie-screen-calibration";
 
   const toolbar = createEl("div", { className: "preview-toolbar" });
@@ -34,6 +35,9 @@ export function Preview({ getDraft, getSummary }) {
   const labelToggle = createEl("label", { className: "toggle preview-label-toggle" });
   const labelCheckbox = createEl("input", { attrs: { type: "checkbox" } });
   const labelText = createEl("span", { text: t("preview.scaleLabels") });
+  const seamHighlightToggle = createEl("label", { className: "toggle preview-label-toggle" });
+  const seamHighlightCheckbox = createEl("input", { attrs: { type: "checkbox" } });
+  const seamHighlightText = createEl("span", { text: t("preview.highlightSeamAllowance") });
   const calibrateButton = createEl("button", {
     className: "secondary",
     text: t("preview.calibrateScreen"),
@@ -72,6 +76,17 @@ export function Preview({ getDraft, getSummary }) {
   })();
   labelCheckbox.checked = storedScaleLabels;
   labelToggle.append(labelCheckbox, labelText);
+  const storedSeamHighlight = (() => {
+    try {
+      const raw = localStorage.getItem(seamHighlightStorageKey);
+      if (raw == null) return false;
+      return raw === "true";
+    } catch {
+      return false;
+    }
+  })();
+  seamHighlightCheckbox.checked = storedSeamHighlight;
+  seamHighlightToggle.append(seamHighlightCheckbox, seamHighlightText);
 
   const viewport = createEl("div", { className: "preview-viewport" });
   const labelLayer = createEl("div", { className: "preview-label-layer" });
@@ -110,6 +125,7 @@ export function Preview({ getDraft, getSummary }) {
     resetButton,
     zoomLabel,
     labelToggle,
+    seamHighlightToggle,
     calibrateButton
   );
   infoPanel.append(infoTitle, infoScale, infoSummary, infoLegend);
@@ -128,6 +144,7 @@ export function Preview({ getDraft, getSummary }) {
   const minZoom = 0.25;
   const maxZoom = 3;
   let scaleLabels = storedScaleLabels;
+  let highlightSeamAllowance = storedSeamHighlight;
   let labelEntries = [];
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -243,6 +260,15 @@ export function Preview({ getDraft, getSummary }) {
     scaleLabels = labelCheckbox.checked;
     try {
       localStorage.setItem(storageKey, String(scaleLabels));
+    } catch {
+      // ignore storage failures
+    }
+    render();
+  });
+  seamHighlightCheckbox.addEventListener("change", () => {
+    highlightSeamAllowance = seamHighlightCheckbox.checked;
+    try {
+      localStorage.setItem(seamHighlightStorageKey, String(highlightSeamAllowance));
     } catch {
       // ignore storage failures
     }
@@ -423,16 +449,19 @@ export function Preview({ getDraft, getSummary }) {
       viewport.textContent = t("preview.noPreview");
       infoPanel.hidden = true;
       labelCheckbox.disabled = true;
+      seamHighlightCheckbox.disabled = true;
       labelLayer.hidden = true;
       calibrationOverlay.hidden = true;
       return;
     }
     labelCheckbox.disabled = false;
+    seamHighlightCheckbox.disabled = false;
 
     const svgString = svgExport(draft, getSummary(), {
       resolveText,
       mode: "preview",
       showLabels: scaleLabels,
+      highlightSeamAllowance,
       labels: {
         unitsLabel: t("export.unitsLabel"),
         seamAllowanceLabel: t("export.seamAllowanceLabel"),
