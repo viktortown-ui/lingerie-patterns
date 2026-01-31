@@ -81,6 +81,29 @@ export function Editor({
     return String(value);
   };
 
+  const resolveModuleName = () => {
+    const draftTitle = draft?.meta?.title;
+    const moduleSchemaName = module.schema?.name;
+    const candidate =
+      (draftTitle && draftTitle.en) ||
+      (typeof draftTitle === "string" ? draftTitle : "") ||
+      (moduleSchemaName && moduleSchemaName.en) ||
+      (typeof moduleSchemaName === "string" ? moduleSchemaName : "");
+    const resolved = resolveTextEn(candidate).trim();
+    if (!resolved || resolved.includes("module.")) return "";
+    return resolved;
+  };
+
+  const resolveOptionValueLabel = (option, rawValue) => {
+    const fallbackValue = rawValue ?? option.default;
+    const matchedChoice = option.choices?.find(
+      (choice) => String(choice.value) === String(fallbackValue)
+    );
+    if (matchedChoice) return resolveTextEn(matchedChoice.label);
+    if (fallbackValue == null) return "";
+    return resolveTextEn(fallbackValue);
+  };
+
   const resolveSeamAllowanceLabel = () => {
     const seamValue = Number(optionValues.seamAllowance ?? 0);
     if (!Number.isFinite(seamValue) || seamValue <= 0) {
@@ -252,9 +275,10 @@ export function Editor({
     const optionsSummary = module.schema.options?.length
       ? module.schema.options
           .map((option) => {
-            const selected = option.choices.find((choice) => choice.value === optionValues[option.key]);
-            return `${resolveTextEn(option.label)}: ${resolveTextEn(selected?.label ?? optionValues[option.key])}`;
+            const valueLabel = resolveOptionValueLabel(option, optionValues[option.key]);
+            return `${resolveTextEn(option.label)}: ${valueLabel}`;
           })
+          .filter(Boolean)
           .join(", ")
       : "No options selected";
     const seamAllowanceValue = Number(optionValues.seamAllowance ?? 0);
@@ -262,13 +286,16 @@ export function Editor({
       Number.isFinite(seamAllowanceValue) && seamAllowanceValue > 0
         ? `${seamAllowanceValue}mm`
         : "0mm";
+    const moduleName = resolveModuleName();
+    const headerTitleText = resolveTextEn(draft?.meta?.title).trim();
+    const infoModuleName = moduleName && moduleName !== headerTitleText ? moduleName : "";
 
     const { data } = pdfExport(draft, {
       marginMm: 10,
       paperSize: state.paperSize || "A4",
       resolveText: resolveTextEn,
       info: {
-        moduleName: resolveTextEn(module.name),
+        moduleName: infoModuleName,
         generatedAt: new Date().toISOString(),
         optionsSummary,
         seamAllowance: seamSummary,
