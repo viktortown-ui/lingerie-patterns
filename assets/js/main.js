@@ -8,6 +8,28 @@ import { modules } from "../../src/patterns/index.js";
 
 const app = document.getElementById("app");
 
+const showFatal = (title, details) => {
+  if (!app) return;
+  const safeDetails = String(details || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  app.innerHTML = `
+    <div class="main">
+      <div class="card">
+        <h2>${title}</h2>
+        <p>Something crashed while loading the app.</p>
+        <p class="muted">Try: hard refresh (Ctrl+F5), or clear site data / service worker cache.</p>
+        <pre style="white-space:pre-wrap; opacity:.8">${safeDetails}</pre>
+      </div>
+    </div>
+  `;
+};
+
+window.addEventListener("error", (e) => {
+  showFatal("White screen error", e?.error?.stack || e?.message || String(e));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  showFatal("Unhandled promise rejection", e?.reason?.stack || e?.reason || String(e));
+});
+
 modules.forEach((module) => registerModule(module));
 
 const DEBUG_I18N = false;
@@ -115,6 +137,17 @@ if (state.selectedModuleId) {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     // Relative path so it works under GitHub Pages subpath (/<repo>/)
-    navigator.serviceWorker.register("./sw.js").catch(() => undefined);
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then((reg) => reg.update?.())
+      .catch(() => undefined);
+
+    // When a new SW takes control, reload once to get the fresh assets.
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    });
   });
 }
