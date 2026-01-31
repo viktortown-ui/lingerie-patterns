@@ -218,10 +218,12 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
     const scale = zoomFactor;
 
     // Set explicit pixel size so scrollbars represent scaled extents.
-    svgEl.style.width = `${viewBoxSize.width * pxPerUnit * scale}px`;
-    svgEl.style.height = `${viewBoxSize.height * pxPerUnit * scale}px`;
-
-    updateZoomLabel();
+    // Round to whole pixels to reduce sub-pixel shimmer at certain zoom/calibration values.
+    const wPx = Math.max(1, Math.round(viewBoxSize.width * pxPerUnit * scale));
+    const hPx = Math.max(1, Math.round(viewBoxSize.height * pxPerUnit * scale));
+    svgEl.style.width = `${wPx}px`;
+    svgEl.style.height = `${hPx}px`;
+updateZoomLabel();
     positionLabels();
   };
 
@@ -408,13 +410,19 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
     { passive: true }
   );
 
+  let resizeRaf = 0;
   const resizeObserver = new ResizeObserver(() => {
-    if (fitMode) {
-      applyFit();
-    } else {
-      applyZoom();
-    }
-    positionLabels();
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      if (fitMode) {
+        applyFit();
+      } else {
+        applyZoom();
+      }
+      positionLabels();
+      updateCalibrationOverlay();
+    });
   });
   resizeObserver.observe(viewport);
 

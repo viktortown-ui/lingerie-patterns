@@ -341,9 +341,11 @@ export function Editor({
     const headerTitleText = resolveTextEn(draft?.meta?.title).trim();
     const infoModuleName = moduleName && moduleName !== headerTitleText ? moduleName : "";
 
+    const paperSize = paperSelect?.value || state.paperSize || "A4";
+
     const { data } = pdfExport(draft, {
       marginMm: 10,
-      paperSize: paperSelect?.value || state.paperSize || "A4",
+      paperSize,
       resolveText: resolveTextEn,
       info: {
         moduleName: infoModuleName,
@@ -364,7 +366,7 @@ export function Editor({
     });
     downloadBlob({
       blob: data,
-      filename: `${module.id}.pdf`,
+      filename: `${module.id}_${paperSize}.pdf`,
       mimeType: "application/pdf",
       onFallbackMessage: () => showDownloadHint(t("editor.downloadFallback")),
     });

@@ -3,7 +3,7 @@
 // while still offering an offline fallback.
 //
 // IMPORTANT: bump BUILD when you deploy a new release.
-const BUILD = "v4";
+const BUILD = "v5";
 const CACHE_NAME = `lingerie-patterns-${BUILD}`;
 
 // Use relative URLs so the PWA works on GitHub Pages subpaths (/<repo>/)

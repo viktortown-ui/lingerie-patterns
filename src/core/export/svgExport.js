@@ -237,6 +237,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const includeInfo = mode !== "preview";
   const isPreview = mode === "preview";
   const highlightSeamAllowance = Boolean(options.highlightSeamAllowance && isPreview);
+  const includeCalibration = !isPreview;
   const showLabels = options.showLabels ?? true;
   const preserveAspectRatio = options.preserveAspectRatio || "xMinYMin meet";
 
@@ -409,7 +410,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   ${pathMarkup}
   ${annotationMarkup}
   ${titleBlocks.markup}
-  <g id="calibration-50mm" stroke="#d11" stroke-width="${formatLength(
+  ${includeCalibration ? `<g id="calibration-50mm" stroke="#d11" stroke-width="${formatLength(
     Units.fromMm(0.4, unit)
   )}" fill="none">
     <line x1="${calibX}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY}" />
@@ -426,7 +427,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     <text x="${calibLargeX}" y="${calibLargeY + calibrationLarge + Units.fromMm(2, unit)}" font-size="${formatFontSize(
       infoFontSize
     )}" fill="#d11">${labels.calibrationLarge || "100mm"}</text>
-  </g>
+  </g>` : ``}
   ${
     includeInfo
       ? renderMultilineText({
