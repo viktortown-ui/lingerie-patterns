@@ -25,6 +25,8 @@ const draft = pantiesModule.draft(
   const pdfText = await data.text();
   assert.ok(pdfText.includes("50mm"));
   assert.ok(pdfText.includes("100mm"));
+  assert.ok(pdfText.includes("GLUE LINE"));
+  assert.ok(pdfText.includes("Assembly Map"));
   assert.ok(/^[\x00-\x7F]*$/.test(pdfText));
 }
 
@@ -36,6 +38,17 @@ const draft = pantiesModule.draft(
   const svg = svgExport(seamDraft, ["Test"]);
   assert.ok(svg.includes("stroke-dasharray"));
   assert.ok(svg.includes("Cut line / Stitch line"));
+}
+
+{
+  const seamDraft = pantiesModule.draft(
+    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
+    { seamAllowance: 6, style: "classic" }
+  );
+  const { data } = pdfExport(seamDraft, { marginMm: 10, paperSize: "A4", info: { legendText: "Legend: cut line = solid, stitch line = dashed" } });
+  const pdfText = await data.text();
+  assert.ok(pdfText.includes("[3 2] 0 d"));
+  assert.ok(pdfText.includes("Legend: cut line = solid, stitch line = dashed"));
 }
 
 {

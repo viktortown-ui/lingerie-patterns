@@ -56,6 +56,6 @@ export const en = {
   "export.seamAllowanceLabel": "Seam allowance",
   "export.calibrationMark": "50mm",
   "export.calibrationLarge": "100mm",
-  "export.seamAllowanceOn": "On",
-  "export.seamAllowanceOff": "Off",
+  "export.seamAllowanceOn": "Enabled",
+  "export.seamAllowanceOff": "0mm",
 };

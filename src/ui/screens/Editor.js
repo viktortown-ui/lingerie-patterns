@@ -261,7 +261,7 @@ export function Editor({
     const seamSummary =
       Number.isFinite(seamAllowanceValue) && seamAllowanceValue > 0
         ? `${seamAllowanceValue}mm`
-        : "Off";
+        : "0mm";
 
     const { data } = pdfExport(draft, {
       marginMm: 10,

@@ -77,7 +77,7 @@ export const schema = {
         ru: "Добавить припуск на шов вокруг детали.",
       },
       choices: [
-        { label: { en: "Off", ru: "Выкл." }, value: 0 },
+        { label: { en: "0mm", ru: "0мм" }, value: 0 },
         { label: { en: "6mm", ru: "6мм" }, value: 6 },
         { label: { en: "8mm", ru: "8мм" }, value: 8 },
         { label: { en: "10mm", ru: "10мм" }, value: 10 },

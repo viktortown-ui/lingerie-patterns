@@ -1,7 +1,7 @@
 import { Path } from "../../core/geometry/Path.js";
 import { Point } from "../../core/geometry/Point.js";
 import { offsetPath } from "../../core/geometry/Offset.js";
-import { grainline, notch, label } from "../../core/pattern/annotations.js";
+import { grainline, notch, label, edgeLabel } from "../../core/pattern/annotations.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -45,6 +45,7 @@ export function draftPanties(measurements, options = {}) {
     grainline(new Point(hipWidth * 0.5, 2), new Point(hipWidth * 0.5, riseHeight - 2)),
     notch(new Point(hipWidth * 0.5, riseHeight)),
     label(new Point(hipWidth * 0.3, riseHeight * 0.5), { en: "Front", ru: "Перед" }),
+    edgeLabel(new Point(waistWidth * 0.5, 1), { en: "Waistline", ru: "Линия талии" }),
   ];
 
   return {
@@ -52,6 +53,8 @@ export function draftPanties(measurements, options = {}) {
       {
         id: "front",
         name: "Front",
+        cutQty: 1,
+        material: "Main",
         paths,
       },
     ],

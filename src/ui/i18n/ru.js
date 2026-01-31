@@ -57,5 +57,5 @@ export const ru = {
   "export.calibrationMark": "50mm",
   "export.calibrationLarge": "100mm",
   "export.seamAllowanceOn": "Вкл.",
-  "export.seamAllowanceOff": "Выкл.",
+  "export.seamAllowanceOff": "0мм",
 };
