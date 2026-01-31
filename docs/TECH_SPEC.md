@@ -14,6 +14,7 @@ This app is a static, offline-capable, ES-module based pattern generator. It run
 - Validation: schema validation for measurement inputs.
 - Export: SVG and PDF tiling (A4/A3) with page labels, alignment marks, and calibration mark.
 - UI: dynamic form rendering, preview, and export actions.
+  - Preview supports CAD-like labels that can stay screen-sized while geometry scales.
 
 ## Offline strategy
 A small service worker (`/sw.js`) caches the app shell on first load for offline use.
@@ -27,7 +28,18 @@ Measurement profiles and theme preference are stored in `localStorage`.
 - Content area per page is page size minus margin (default 10mm).
 - Tiling uses row/column math: `cols = ceil(widthMm / contentWidthMm)`, `rows = ceil(heightMm / contentHeightMm)`.
 - Page IDs are labeled as `R{row}C{col}` for assembly.
-- The first page includes a **50mm calibration mark** and print instructions.
+- The first page includes **50mm + 100mm calibration marks** and print instructions.
+- Alignment marks include corner and midpoint crosses to aid tile assembly.
+
+## SVG export scaling
+- `svgExport` computes the `viewBox` from geometry bounds plus margins.
+- `preserveAspectRatio` is fixed to `xMinYMin meet` to make resizing deterministic.
+- The SVG `width`/`height` are specified in millimeters for true-scale printing.
+
+## Preview labels
+- Geometry is rendered in SVG and scaled via the preview zoom/pan system.
+- When **Scale labels** is off, labels render in an HTML overlay positioned using `getScreenCTM`.
+- When **Scale labels** is on, labels remain inside SVG and scale with geometry.
 
 ## Module registry
 - `/src/patterns/index.js` exports an array of modules that should be registered at boot.
@@ -42,3 +54,6 @@ Measurement profiles and theme preference are stored in `localStorage`.
 5. Export the module in `/src/patterns/index.js`.
 6. Add fixtures in `/tests/fixtures/` for contract tests.
 7. Run the tests to confirm `module_contract.test.js` passes.
+
+## Extension hooks
+`/src/core/extensions/assistantHooks.js` defines no-op hook points for future AI assistance integrations.

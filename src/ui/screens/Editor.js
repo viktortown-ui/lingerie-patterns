@@ -191,6 +191,7 @@ export function Editor({
         seamAllowanceOff: t("export.seamAllowanceOff"),
         legendLines: t("export.legendShort"),
         calibration: t("export.calibrationMark"),
+        calibrationLarge: t("export.calibrationLarge"),
         patternTitle: t("export.patternTitle"),
       },
     });

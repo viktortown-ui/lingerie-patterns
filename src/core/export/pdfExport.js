@@ -1,4 +1,5 @@
 import { Units } from "../geometry/Units.js";
+import { collectPaths, hasSeamPaths } from "../pattern/panels.js";
 
 const PAPER_SIZES = {
   A4: { widthMm: 210, heightMm: 297 },
@@ -56,6 +57,20 @@ function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
       ].join("\n")
     )
     .join("\n");
+  const midpoints = [
+    { x: marginPt + contentWidthPt / 2, y: marginPt },
+    { x: marginPt + contentWidthPt / 2, y: marginPt + contentHeightPt },
+    { x: marginPt, y: marginPt + contentHeightPt / 2 },
+    { x: marginPt + contentWidthPt, y: marginPt + contentHeightPt / 2 },
+  ];
+  const midCrosses = midpoints
+    .map((point) =>
+      [
+        `${point.x - cross} ${point.y} m ${point.x + cross} ${point.y} l`,
+        `${point.x} ${point.y - cross} m ${point.x} ${point.y + cross} l`,
+      ].join("\n")
+    )
+    .join("\n");
   return [
     `0 ${marginPt} m ${mark} ${marginPt} l`,
     `${marginPt} 0 m ${marginPt} ${mark} l`,
@@ -66,23 +81,34 @@ function assemblyMarks({ marginPt, contentWidthPt, contentHeightPt }) {
     `${contentWidthPt + marginPt - mark} ${contentHeightPt + marginPt} m ${contentWidthPt + marginPt} ${contentHeightPt + marginPt} l`,
     `${contentWidthPt + marginPt} ${contentHeightPt + marginPt - mark} m ${contentWidthPt + marginPt} ${contentHeightPt + marginPt} l`,
     crosses,
+    midCrosses,
   ].join("\n");
 }
 
 function calibrationMark({ marginPt, pageHeightPt }) {
   const size = Units.toPtFromMm(50);
+  const largeSize = Units.toPtFromMm(100);
   const x = marginPt;
   const y = pageHeightPt - marginPt - size;
+  const largeX = x + size + Units.toPtFromMm(6);
+  const largeY = pageHeightPt - marginPt - largeSize;
   return [
     "1 0 0 RG",
     "1 0 0 rg",
     `${x} ${y} m ${x + size} ${y} l`,
     `${x + size} ${y} l ${x + size} ${y + size} l`,
     "S",
+    `${largeX} ${largeY} ${largeSize} ${largeSize} re`,
+    "S",
     "BT",
     "/F1 8 Tf",
     `${x} ${y - Units.toPtFromMm(4)} Td`,
     "(50mm) Tj",
+    "ET",
+    "BT",
+    "/F1 8 Tf",
+    `${largeX} ${largeY - Units.toPtFromMm(4)} Td`,
+    "(100mm) Tj",
     "ET",
     "0 0 0 RG",
     "0 0 0 rg",
@@ -218,8 +244,8 @@ export function pdfExport(draft, options = {}) {
   const info = options.info || {};
   const resolveText = options.resolveText;
   const labels = options.labels || {};
-  const pathEntries = Object.entries(draft.paths).map(([name, path]) => ({ name, path }));
-  const paths = pathEntries.map(({ path }) => path);
+  const pathEntries = collectPaths(draft);
+  const paths = pathEntries.map((entry) => entry.path);
   const bounds = mergeBounds(paths);
   const widthMm = Units.toMm(bounds.maxX - bounds.minX, unit);
   const heightMm = Units.toMm(bounds.maxY - bounds.minY, unit);
@@ -240,8 +266,7 @@ export function pdfExport(draft, options = {}) {
   const minYPt = bounds.minY * unitScale;
 
   const pages = [];
-  const hasSeamPaths = pathEntries.some((entry) => entry.name.toLowerCase().includes("seam"));
-  const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
+  const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths(pathEntries));
   const cutLineWidth = Units.toPtFromMm(0.6);
   const seamLineWidth = Units.toPtFromMm(0.35);
   const patternLabel = labels.patternLabel || "Pattern";
@@ -261,7 +286,7 @@ export function pdfExport(draft, options = {}) {
 
       const pathCommands = pathEntries
         .map((entry) => {
-          const isSeam = entry.name.toLowerCase().includes("seam");
+          const isSeam = (entry.pathName || entry.name).toLowerCase().includes("seam");
           const seamStyle = isSeam && seamAllowanceApplied;
           const dash = seamStyle ? "[3 2] 0 d" : "[] 0 d";
           const width = seamStyle ? `${seamLineWidth} w` : `${cutLineWidth} w`;

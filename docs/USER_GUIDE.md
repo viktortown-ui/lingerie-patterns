@@ -26,12 +26,16 @@ Use the **RU/EN** selector in the top bar to switch the interface language. Your
 Use **Toggle theme** in the top bar to switch between light and dark modes. The choice is saved in your browser.
 
 ## Export tips
-- The SVG includes a red **50mm** calibration mark. Verify the printed size before cutting.
+- The SVG includes red **50mm** and **100mm** calibration marks. Verify the printed size before cutting.
 - The PDF output supports **A4 tiled** and **A3** (single page if it fits, tiled otherwise).
 - Print PDFs at **100% / Actual size** and disable “Fit to page”.
-- Measure the **50mm** mark with a ruler before cutting.
+- Measure the **50mm** and **100mm** marks with a ruler before cutting.
 - Each page shows an ID like **R1C1** to help assemble tiles.
-- Align pages using the page ID and the corner alignment marks.
+- Align pages using the page ID and the corner + midpoint alignment marks.
+
+## Preview labels
+- Use **Scale labels** to keep annotations readable while zooming.
+- When scale is off, labels stay screen-sized while the geometry zooms/pans.
 
 ## Hard refresh / clear cache (GitHub Pages)
 If you don’t see recent updates:

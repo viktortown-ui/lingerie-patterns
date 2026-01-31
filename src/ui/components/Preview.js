@@ -1,10 +1,12 @@
 import { createEl, clearEl } from "../../core/utils/dom.js";
 import { svgExport } from "../../core/export/svgExport.js";
 import { Units } from "../../core/geometry/Units.js";
+import { collectPaths, hasSeamPaths } from "../../core/pattern/panels.js";
 import { resolveText, t } from "../i18n/i18n.js";
 
 export function Preview({ getDraft, getSummary }) {
   const wrapper = createEl("div", { className: "preview" });
+  const storageKey = "lingerie-preview-scale-labels";
 
   const toolbar = createEl("div", { className: "preview-toolbar" });
   const fitButton = createEl("button", {
@@ -30,11 +32,21 @@ export function Preview({ getDraft, getSummary }) {
   const zoomLabel = createEl("span", { className: "preview-zoom-label", text: "100%" });
   const labelToggle = createEl("label", { className: "toggle preview-label-toggle" });
   const labelCheckbox = createEl("input", { attrs: { type: "checkbox" } });
-  const labelText = createEl("span", { text: t("preview.showLabels") });
-  labelCheckbox.checked = true;
+  const labelText = createEl("span", { text: t("preview.scaleLabels") });
+  const storedScaleLabels = (() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw == null) return true;
+      return raw === "true";
+    } catch {
+      return true;
+    }
+  })();
+  labelCheckbox.checked = storedScaleLabels;
   labelToggle.append(labelCheckbox, labelText);
 
   const viewport = createEl("div", { className: "preview-viewport" });
+  const labelLayer = createEl("div", { className: "preview-label-layer" });
   const infoPanel = createEl("div", { className: "preview-info" });
   const infoTitle = createEl("div", { className: "preview-info-title" });
   const infoScale = createEl("div", { className: "preview-info-line" });
@@ -54,7 +66,8 @@ export function Preview({ getDraft, getSummary }) {
   let fitMode = true;
   const minZoom = 0.25;
   const maxZoom = 3;
-  let showLabels = true;
+  let scaleLabels = storedScaleLabels;
+  let labelEntries = [];
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -88,6 +101,7 @@ export function Preview({ getDraft, getSummary }) {
     svgEl.style.height = `${viewBoxSize.height * pxPerUnit * scale}px`;
 
     updateZoomLabel();
+    positionLabels();
   };
 
   const setZoomFactor = (next) => {
@@ -112,7 +126,12 @@ export function Preview({ getDraft, getSummary }) {
   zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
   zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
   labelCheckbox.addEventListener("change", () => {
-    showLabels = labelCheckbox.checked;
+    scaleLabels = labelCheckbox.checked;
+    try {
+      localStorage.setItem(storageKey, String(scaleLabels));
+    } catch {
+      // ignore storage failures
+    }
     render();
   });
 
@@ -215,8 +234,43 @@ export function Preview({ getDraft, getSummary }) {
     } else {
       applyZoom();
     }
+    positionLabels();
   });
   resizeObserver.observe(viewport);
+
+  viewport.addEventListener("scroll", () => {
+    positionLabels();
+  });
+
+  const positionLabels = () => {
+    if (!svgEl || scaleLabels || !labelEntries.length) {
+      labelLayer.hidden = true;
+      return;
+    }
+    const ctm = svgEl.getScreenCTM();
+    if (!ctm) return;
+    const viewportRect = viewport.getBoundingClientRect();
+    labelEntries.forEach(({ annotation, el }) => {
+      const point = new DOMPoint(annotation.point.x, annotation.point.y).matrixTransform(ctm);
+      const left = point.x - viewportRect.left;
+      const top = point.y - viewportRect.top;
+      el.style.transform = `translate(${left}px, ${top}px) translate(-50%, -50%)`;
+    });
+    labelLayer.hidden = false;
+  };
+
+  const renderOverlayLabels = (draft) => {
+    labelLayer.innerHTML = "";
+    labelEntries = [];
+    const labels = (draft.annotations || []).filter((anno) => anno.type === "label");
+    labels.forEach((annotation) => {
+      const text = resolveText(annotation.text);
+      if (!text) return;
+      const labelEl = createEl("span", { className: "preview-label", text });
+      labelLayer.appendChild(labelEl);
+      labelEntries.push({ annotation, el: labelEl });
+    });
+  };
 
   const render = () => {
     clearEl(viewport);
@@ -225,6 +279,7 @@ export function Preview({ getDraft, getSummary }) {
       viewport.textContent = t("preview.noPreview");
       infoPanel.hidden = true;
       labelCheckbox.disabled = true;
+      labelLayer.hidden = true;
       return;
     }
     labelCheckbox.disabled = false;
@@ -232,7 +287,7 @@ export function Preview({ getDraft, getSummary }) {
     const svgString = svgExport(draft, getSummary(), {
       resolveText,
       mode: "preview",
-      showLabels,
+      showLabels: scaleLabels,
       labels: {
         unitsLabel: t("export.unitsLabel"),
         seamAllowanceLabel: t("export.seamAllowanceLabel"),
@@ -240,6 +295,7 @@ export function Preview({ getDraft, getSummary }) {
         seamAllowanceOff: t("export.seamAllowanceOff"),
         legendLines: t("export.legendShort"),
         calibration: t("export.calibrationMark"),
+        calibrationLarge: t("export.calibrationLarge"),
         patternTitle: t("export.patternTitle"),
       },
     });
@@ -260,6 +316,7 @@ export function Preview({ getDraft, getSummary }) {
     nextSvg.style.display = "block";
 
     viewport.appendChild(nextSvg);
+    viewport.appendChild(labelLayer);
     svgEl = nextSvg;
     svgEl.querySelectorAll("path,line,polyline,polygon").forEach((el) => {
       el.setAttribute("vector-effect", "non-scaling-stroke");
@@ -267,8 +324,7 @@ export function Preview({ getDraft, getSummary }) {
 
     const unit = draft.meta?.unit || "cm";
     pxPerUnit = Units.toMm(1, unit) * (96 / 25.4);
-    const hasSeamPaths = Object.keys(draft.paths || {}).some((name) => name.toLowerCase().includes("seam"));
-    const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths);
+    const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths(collectPaths(draft)));
     const seamAllowanceLabel = seamAllowanceApplied ? t("export.seamAllowanceOn") : t("export.seamAllowanceOff");
     const scaleInfo = `${t("export.unitsLabel")}: ${unit} | ${t("export.seamAllowanceLabel")}: ${seamAllowanceLabel}`;
     const summaryText = getSummary().join(", ");
@@ -282,11 +338,15 @@ export function Preview({ getDraft, getSummary }) {
     infoLegend.hidden = !seamAllowanceApplied;
     infoPanel.hidden = false;
 
+    renderOverlayLabels(draft);
+
     if (fitMode) {
       applyFit();
     } else {
       applyZoom();
     }
+
+    positionLabels();
   };
 
   render();
