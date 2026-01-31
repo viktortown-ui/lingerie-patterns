@@ -73,10 +73,35 @@ export function Editor({
   let draft = null;
   let errors = validateSchema(module.schema, formValues);
 
+  const resolveTextEn = (value) => {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") return value.en || "";
+    return String(value);
+  };
+
+  const downloadOrOpen = (url, filename) => {
+    const link = createEl("a", { attrs: { href: url, download: filename } });
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      window.open(url, "_blank");
+    }
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      link.remove();
+    }, 1500);
+  };
+
   const measurementsSummary = () =>
-    module.schema.fields.map(
-      (field) => `${resolveText(field.label)}: ${formValues[field.key]}${module.schema.unit}`
-    );
+    module.schema.fields.map((field) => {
+      const label = field.code
+        ? `${resolveText(field.label)} (${field.code})`
+        : resolveText(field.label);
+      return `${label}: ${formValues[field.key]}${module.schema.unit}`;
+    });
 
   const preview = Preview({
     getDraft: () => draft,
@@ -197,9 +222,7 @@ export function Editor({
     });
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
-    const link = createEl("a", { attrs: { href: url, download: `${module.id}.svg` } });
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadOrOpen(url, `${module.id}.svg`);
   });
 
   exportPdfButton.addEventListener("click", () => {
@@ -208,46 +231,45 @@ export function Editor({
       ? module.schema.options
           .map((option) => {
             const selected = option.choices.find((choice) => choice.value === optionValues[option.key]);
-            return `${resolveText(option.label)}: ${resolveText(selected?.label ?? optionValues[option.key])}`;
+            return `${resolveTextEn(option.label)}: ${resolveTextEn(selected?.label ?? optionValues[option.key])}`;
           })
           .join(", ")
-      : t("editor.noOptionsSelected");
+      : "No options selected";
     const seamField = module.schema.fields.find((field) => field.key.toLowerCase().includes("seam"));
     const seamValue = seamField ? `${formValues[seamField.key]}${module.schema.unit}` : null;
     const seamOption = module.schema.options?.find((option) => option.key.toLowerCase().includes("seam"));
     const seamOptionValue = seamOption ? optionValues[seamOption.key] : null;
     const seamOptionLabel =
       seamOptionValue === "on"
-        ? t("export.seamAllowanceOn")
+        ? "On"
         : seamOptionValue === "off"
-          ? t("export.seamAllowanceOff")
+          ? "Off"
           : seamOptionValue;
     const seamSummary = seamValue || seamOptionLabel || "";
 
     const { data } = pdfExport(draft, {
       marginMm: 10,
       paperSize: state.paperSize || "A4",
-      resolveText,
+      resolveText: resolveTextEn,
       info: {
-        moduleName: resolveText(module.name),
-        generatedAt: new Date().toLocaleString(),
+        moduleName: resolveTextEn(module.name),
+        generatedAt: new Date().toISOString(),
         optionsSummary,
         seamAllowance: seamSummary,
         seamAllowanceApplied: draft.meta?.seamAllowanceApplied,
-        legendText: t("export.legend"),
-        instructionText: t("export.instructions"),
+        legendText: "Legend: cut line = solid, stitch line = dashed",
+        instructionText:
+          "Print at 100% / Actual size. Disable 'Fit to page'. Measure the 50mm and 100mm marks with a ruler.",
       },
       labels: {
-        patternLabel: t("export.patternLabel"),
-        generatedLabel: t("export.generatedLabel"),
-        optionsLabel: t("export.optionsLabel"),
-        seamAllowanceLabel: t("export.seamAllowanceLabel"),
+        patternLabel: "Pattern",
+        generatedLabel: "Generated",
+        optionsLabel: "Options",
+        seamAllowanceLabel: "Seam allowance",
       },
     });
     const url = URL.createObjectURL(data);
-    const link = createEl("a", { attrs: { href: url, download: `${module.id}.pdf` } });
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadOrOpen(url, `${module.id}.pdf`);
   });
 
   actionBar.append(paperLabel, paperSelect, exportSvgButton, exportPdfButton);

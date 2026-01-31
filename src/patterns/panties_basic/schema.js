@@ -5,6 +5,7 @@ export const schema = {
   fields: [
     {
       key: "waist",
+      code: "W",
       label: { en: "Waist circumference", ru: "Обхват талии" },
       description: {
         en: "Measure around the natural waist.",
@@ -16,6 +17,7 @@ export const schema = {
     },
     {
       key: "hip",
+      code: "H",
       label: { en: "Hip circumference", ru: "Обхват бёдер" },
       description: {
         en: "Measure around the fullest part of the hips.",
@@ -27,6 +29,7 @@ export const schema = {
     },
     {
       key: "rise",
+      code: "D",
       label: { en: "Rise", ru: "Высота сидения" },
       description: {
         en: "Vertical distance from waist to crotch (front).",
@@ -38,6 +41,7 @@ export const schema = {
     },
     {
       key: "legOpening",
+      code: "L",
       label: { en: "Leg opening", ru: "Обхват по вырезу ноги" },
       description: {
         en: "Circumference around the leg opening.",

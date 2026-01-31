@@ -10,7 +10,10 @@ export function Form({ schema, values, onChange, onSubmit }) {
   const renderFields = () => {
     schema.fields.forEach((field) => {
       const group = createEl("div", { className: "form-group" });
-      const label = createEl("label", { text: resolveText(field.label) });
+      const labelText = field.code
+        ? `${resolveText(field.label)} (${field.code})`
+        : resolveText(field.label);
+      const label = createEl("label", { text: labelText });
       const input = createEl("input", {
         attrs: {
           type: "number",

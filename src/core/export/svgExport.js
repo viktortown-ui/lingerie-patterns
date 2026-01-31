@@ -244,6 +244,20 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const calibrationLarge = Units.fromMm(100, unit);
   const calibLargeX = calibX + calibrationSize + Units.fromMm(6, unit);
   const calibLargeY = exportBounds.minY + Units.fromMm(4, unit);
+  const tickStep = calibrationSize / 5;
+  const tickHeight = Units.fromMm(2.4, unit);
+  const tickLabelOffset = Units.fromMm(4.2, unit);
+  const tickFontSize = Units.fromMm(2.6, unit);
+  const tickLabels = Array.from({ length: 6 }, (_, index) => {
+    const x = calibX + tickStep * index;
+    const value = index * 10;
+    return [
+      `<line x1="${x}" y1="${calibY}" x2="${x}" y2="${calibY - tickHeight}" />`,
+      `<text x="${x}" y="${calibY + tickLabelOffset}" font-size="${formatFontSize(
+        tickFontSize
+      )}" fill="#d11" text-anchor="middle">${value}</text>`,
+    ].join("\n");
+  }).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${Units.toMm(width, unit)}mm" height="${Units.toMm(height, unit)}mm" preserveAspectRatio="${preserveAspectRatio}">
@@ -260,6 +274,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   )}" fill="none">
     <line x1="${calibX}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY}" />
     <line x1="${calibX + calibrationSize}" y1="${calibY}" x2="${calibX + calibrationSize}" y2="${calibY - calibrationSize}" />
+    ${tickLabels}
     <text x="${calibX}" y="${calibY + Units.fromMm(2, unit)}" font-size="${formatFontSize(
       infoFontSize
     )}" fill="#d11">${labels.calibration || "50mm"}</text>
