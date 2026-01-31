@@ -17,8 +17,13 @@ export const en = {
   "editor.downloadSvg": "Download SVG",
   "editor.downloadPdf": "Download PDF",
   "editor.paperSize": "Paper",
-  "editor.paperSizeA4": "A4 tiled",
-  "editor.paperSizeA3": "A3 (tile if needed)",
+  "editor.paperSizeA4": "A4 tiled (print at home)",
+  "editor.paperSizeA3": "A3 tiled (fewer pages)",
+  "editor.paperHelp":
+    "For accurate size: print at 100% / Actual size. Verify the 100mm square with a ruler.",
+  "editor.tracingHelp":
+    "If you trace from screen, use calibration to match 100mm with a ruler (coming next).",
+  "editor.downloadFallback": "If download didn’t start, tap and hold / open in new tab.",
   "editor.noOptionsSelected": "No options selected",
   "editor.generateDraftFirst": "Generate a draft first",
   "editor.draftFailed": "Draft failed",
@@ -33,6 +38,10 @@ export const en = {
   "preview.zoomOut": "Zoom out",
   "preview.reset": "Reset",
   "preview.scaleLabels": "Scale labels",
+  "preview.calibrateScreen": "Calibrate screen",
+  "preview.screenScale": "Screen scale",
+  "preview.decreaseScale": "Decrease screen scale",
+  "preview.increaseScale": "Increase screen scale",
   "preview.noPreview": "No preview yet. Change a measurement to generate the draft.",
   "preview.unavailable": "Preview unavailable.",
 

@@ -17,8 +17,13 @@ export const ru = {
   "editor.downloadSvg": "Скачать SVG",
   "editor.downloadPdf": "Скачать PDF",
   "editor.paperSize": "Бумага",
-  "editor.paperSizeA4": "A4 плитками",
-  "editor.paperSizeA3": "A3 (плитками при необходимости)",
+  "editor.paperSizeA4": "A4 плитками (печать дома)",
+  "editor.paperSizeA3": "A3 плитками (меньше листов)",
+  "editor.paperHelp":
+    "Для точного размера печатайте в масштабе 100% / Actual size. Проверьте квадрат 100мм линейкой.",
+  "editor.tracingHelp":
+    "Если обводите с экрана, используйте калибровку, чтобы 100мм совпали с линейкой (скоро).",
+  "editor.downloadFallback": "Если загрузка не началась, нажмите и удерживайте / откройте в новой вкладке.",
   "editor.noOptionsSelected": "Опции не выбраны",
   "editor.generateDraftFirst": "Сначала создайте выкройку",
   "editor.draftFailed": "Не удалось создать выкройку",
@@ -33,6 +38,10 @@ export const ru = {
   "preview.zoomOut": "Отдалить",
   "preview.reset": "Сброс",
   "preview.scaleLabels": "Масштабировать подписи",
+  "preview.calibrateScreen": "Калибровать экран",
+  "preview.screenScale": "Масштаб экрана",
+  "preview.decreaseScale": "Уменьшить масштаб",
+  "preview.increaseScale": "Увеличить масштаб",
   "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
   "preview.unavailable": "Предпросмотр недоступен.",
 

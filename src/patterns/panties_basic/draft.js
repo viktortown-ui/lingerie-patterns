@@ -29,7 +29,8 @@ export function draftPanties(measurements, options = {}) {
     .lineTo(0, riseHeight)
     .close();
 
-  const seamAllowance = options.seamAllowance === "on" ? 0.8 : 0;
+  const seamAllowanceMm = Number(options.seamAllowance ?? 0);
+  const seamAllowance = Number.isFinite(seamAllowanceMm) && seamAllowanceMm > 0 ? seamAllowanceMm / 10 : 0;
   const seamPath = seamAllowance ? offsetPath(path, seamAllowance) : null;
 
   const paths = {
@@ -62,6 +63,7 @@ export function draftPanties(measurements, options = {}) {
       moduleId: "panties_basic",
       moduleVersion: "0.1.0",
       seamAllowanceApplied: seamAllowance > 0,
+      seamAllowanceMm: seamAllowance > 0 ? seamAllowanceMm : 0,
     },
   };
 }

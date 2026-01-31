@@ -4,8 +4,8 @@
 1. Open `index.html` in a modern browser.
 2. Select **Panties Basic**.
 3. Enter measurements in centimeters.
-4. Toggle seam allowance if needed.
-5. Choose **A4 tiled** or **A3** paper in the export bar.
+4. Choose a seam allowance (6mm default).
+5. Choose **A4 tiled (print at home)** or **A3 tiled (fewer pages)** in the export bar.
 6. Use **Download SVG** or **Download PDF** to export.
 
 ## Measurement instructions
@@ -27,11 +27,12 @@ Use **Toggle theme** in the top bar to switch between light and dark modes. The 
 
 ## Export tips
 - The SVG includes red **50mm** and **100mm** calibration marks. Verify the printed size before cutting.
-- The PDF output supports **A4 tiled** and **A3** (single page if it fits, tiled otherwise).
+- The PDF output supports **A4 tiled (print at home)** and **A3 tiled (fewer pages)**.
 - Print PDFs at **100% / Actual size** and disable “Fit to page”.
 - Measure the **50mm** and **100mm** marks with a ruler before cutting.
 - Each page shows an ID like **R1C1** to help assemble tiles.
 - Align pages using the page ID and the corner + midpoint alignment marks.
+- For screen tracing, use **Calibrate screen** in the preview toolbar to match the **100mm** line to a ruler.
 
 ## Preview labels
 - Use **Scale labels** to keep annotations readable while zooming.

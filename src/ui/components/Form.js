@@ -67,7 +67,9 @@ export function Form({ schema, values, onChange, onSubmit }) {
         });
 
         select.addEventListener("change", (event) => {
-          values[option.key] = event.target.value;
+          const rawValue = event.target.value;
+          const selected = option.choices.find((choice) => String(choice.value) === rawValue);
+          values[option.key] = selected ? selected.value : rawValue;
           onChange(values, validateSchema(schema, values));
         });
 

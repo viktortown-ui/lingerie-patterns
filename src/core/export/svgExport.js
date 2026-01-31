@@ -153,9 +153,10 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const viewBox = `${exportBounds.minX} ${exportBounds.minY} ${width} ${height}`;
 
   const summaryText = measurementsSummary.join(", ");
-  const seamAllowanceLabel = meta.seamAllowanceApplied
-    ? labels.seamAllowanceOn || "On"
-    : labels.seamAllowanceOff || "Off";
+  const seamAllowanceLabel =
+    meta.seamAllowanceApplied && meta.seamAllowanceMm
+      ? `${meta.seamAllowanceMm}mm`
+      : labels.seamAllowanceOff || "Off";
   const scaleInfo = `${labels.unitsLabel || "Units"}: ${unit} | ${labels.seamAllowanceLabel || "Seam allowance"}: ${seamAllowanceLabel}`;
   const calibrationSize = Units.fromMm(50, unit);
   const calibX = exportBounds.minX + Units.fromMm(4, unit);
