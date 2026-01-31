@@ -18,6 +18,7 @@
 - Use **Save profile** to store a measurement set with a name.
 - Use **Load** to recall saved measurements.
 - The last used profile loads automatically.
+- Your last in-progress draft (measurements, options, paper size, preview toggles) is restored on reload.
 
 ## Language
 Use the **RU/EN** selector in the top bar to switch the interface language. Your choice is saved in your browser.
@@ -34,11 +35,16 @@ Use **Toggle theme** in the top bar to switch between light and dark modes. The 
 - Use the **cut line** as the trimming guide, then align pages on the highlighted **GLUE LINE** overlap.
 - Match the page ID and the stronger corner/edge registration marks before taping.
 - For screen tracing, use **Calibrate screen** in the preview toolbar to match the **100mm** line to a ruler.
+- Multi-piece patterns include front/back/gusset panels with title blocks and foldline markers for cut-on-fold pieces.
 
 ## Preview labels
 - Use **Scale labels** to keep annotations readable while zooming.
 - When scale is off, labels stay screen-sized while the geometry zooms/pans.
 - Use **Highlight seam allowance** to boost stitch line visibility in the preview (exports keep print styling).
+
+## Thong options
+- **Thong width (cm)** controls the narrow back strap width at the crotch.
+- Thong patterns include front, back, and gusset pieces; use the gusset lining option for a clean finish.
 
 ## Hard refresh / clear cache (GitHub Pages)
 If you don’t see recent updates:

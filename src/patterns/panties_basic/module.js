@@ -6,7 +6,7 @@ const module = new PatternModule({
   id: "panties_basic",
   name: "module.panties_basic.name",
   category: "module.panties_basic.category",
-  version: "0.1.0",
+  version: "0.2.0",
   schema,
   draft: draftPanties,
 });

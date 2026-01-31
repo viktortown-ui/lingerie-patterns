@@ -4,7 +4,7 @@ import { Units } from "../../core/geometry/Units.js";
 import { collectPaths, hasSeamPaths } from "../../core/pattern/panels.js";
 import { resolveText, t } from "../i18n/i18n.js";
 
-export function Preview({ getDraft, getSummary }) {
+export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange }) {
   const wrapper = createEl("div", { className: "preview" });
   const storageKey = "lingerie-preview-scale-labels";
   const seamHighlightStorageKey = "lingerie-preview-seam-highlight";
@@ -74,7 +74,9 @@ export function Preview({ getDraft, getSummary }) {
       return true;
     }
   })();
-  labelCheckbox.checked = storedScaleLabels;
+  const initialScaleLabels =
+    typeof settings.scaleLabels === "boolean" ? settings.scaleLabels : storedScaleLabels;
+  labelCheckbox.checked = initialScaleLabels;
   labelToggle.append(labelCheckbox, labelText);
   const storedSeamHighlight = (() => {
     try {
@@ -85,7 +87,9 @@ export function Preview({ getDraft, getSummary }) {
       return false;
     }
   })();
-  seamHighlightCheckbox.checked = storedSeamHighlight;
+  const initialSeamHighlight =
+    typeof settings.seamHighlight === "boolean" ? settings.seamHighlight : storedSeamHighlight;
+  seamHighlightCheckbox.checked = initialSeamHighlight;
   seamHighlightToggle.append(seamHighlightCheckbox, seamHighlightText);
 
   const viewport = createEl("div", { className: "preview-viewport" });
@@ -143,8 +147,8 @@ export function Preview({ getDraft, getSummary }) {
   let fitMode = true;
   const minZoom = 0.25;
   const maxZoom = 3;
-  let scaleLabels = storedScaleLabels;
-  let highlightSeamAllowance = storedSeamHighlight;
+  let scaleLabels = initialScaleLabels;
+  let highlightSeamAllowance = initialSeamHighlight;
   let labelEntries = [];
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -256,6 +260,9 @@ export function Preview({ getDraft, getSummary }) {
   resetButton.addEventListener("click", resetZoom);
   zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
   zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
+  const notifySettings = () => {
+    onSettingsChange?.({ scaleLabels, seamHighlight: highlightSeamAllowance });
+  };
   labelCheckbox.addEventListener("change", () => {
     scaleLabels = labelCheckbox.checked;
     try {
@@ -264,6 +271,7 @@ export function Preview({ getDraft, getSummary }) {
       // ignore storage failures
     }
     render();
+    notifySettings();
   });
   seamHighlightCheckbox.addEventListener("change", () => {
     highlightSeamAllowance = seamHighlightCheckbox.checked;
@@ -273,7 +281,9 @@ export function Preview({ getDraft, getSummary }) {
       // ignore storage failures
     }
     render();
+    notifySettings();
   });
+  notifySettings();
 
   calibrationMultiplier = loadCalibration();
   calibrationSlider.value = String(calibrationMultiplier);

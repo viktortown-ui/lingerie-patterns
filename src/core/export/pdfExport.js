@@ -456,7 +456,7 @@ export function pdfExport(draft, options = {}) {
   const pages = [];
   const seamAllowanceApplied = Boolean(draft.meta?.seamAllowanceApplied && hasSeamPaths(pathEntries));
   const cutLineWidth = Units.toPtFromMm(0.6);
-  const seamLineWidth = Units.toPtFromMm(0.35);
+  const seamLineWidth = Units.toPtFromMm(0.5);
   const overlapPt = Units.toPtFromMm(5);
   const patternLabel = labels.patternLabel || "Pattern";
   const generatedLabel = labels.generatedLabel || "Generated";
@@ -479,7 +479,7 @@ export function pdfExport(draft, options = {}) {
         .map((entry) => {
           const isSeam = (entry.pathName || entry.name).toLowerCase().includes("seam");
           const seamStyle = isSeam && seamAllowanceApplied;
-          const dash = seamStyle ? "[3 2] 0 d" : "[] 0 d";
+          const dash = seamStyle ? "[4 2] 0 d" : "[] 0 d";
           const width = seamStyle ? `${seamLineWidth} w` : `${cutLineWidth} w`;
           return [width, dash, pathToPdf(entry.path, unitScale)].join("\n");
         })

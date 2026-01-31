@@ -80,9 +80,14 @@
 - /sw.js
 
 ## Phase 1.5 — Seam allowance smoothing + thong model
-- [ ] Replace seam allowance offset with mitered polyline offsets + miter limit fallback.
-- [ ] Add a preview toggle to highlight seam allowance styling.
-- [ ] Add the **Panties Thong Basic** module with thong width option.
+- [x] Replace seam allowance offset with mitered polyline offsets + miter limit fallback.
+- [x] Add a preview toggle to highlight seam allowance styling.
+- [x] Add the **Panties Thong Basic** module with thong width option.
+
+## Phase 1.6 — Multi-piece panties + export state
+- [x] Add multi-piece panties (front/back/gusset + optional lining) with grainlines, notches, and foldlines.
+- [x] Persist draft settings (measurements/options/paper/preview toggles) in local storage.
+- [x] Ensure paper size selection is honored by export handlers.
 
 ## Phase 2 — Reliability + UX upgrades
 
