@@ -24,10 +24,21 @@ const showFatal = (title, details) => {
 };
 
 window.addEventListener("error", (e) => {
-  showFatal("White screen error", e?.error?.stack || e?.message || String(e));
+  // Chrome may emit ResizeObserver loop warnings as window "error" events during viewport changes
+  // (e.g., when DevTools opens/closes). This is usually harmless, so don't crash the whole app on it.
+  const msg = String(e?.message || e?.error?.message || "");
+  const stack = String(e?.error?.stack || "");
+  if (/ResizeObserver loop/i.test(msg) || /ResizeObserver loop/i.test(stack)) {
+    e?.preventDefault?.();
+    return;
+  }
+  showFatal("White screen error", stack || msg || String(e));
 });
 window.addEventListener("unhandledrejection", (e) => {
-  showFatal("Unhandled promise rejection", e?.reason?.stack || e?.reason || String(e));
+  const msg = String(e?.reason?.message || e?.reason || "");
+  const stack = String(e?.reason?.stack || "");
+  if (/ResizeObserver loop/i.test(msg) || /ResizeObserver loop/i.test(stack)) return;
+  showFatal("Unhandled promise rejection", stack || msg || String(e));
 });
 
 modules.forEach((module) => registerModule(module));
