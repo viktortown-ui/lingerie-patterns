@@ -92,12 +92,32 @@ function calibrationMark({ marginPt, pageHeightPt }) {
   const y = pageHeightPt - marginPt - size;
   const largeX = x + size + Units.toPtFromMm(6);
   const largeY = pageHeightPt - marginPt - largeSize;
+  const tickStep = size / 5;
+  const tickHeight = Units.toPtFromMm(2.5);
+  const tickLabelOffset = Units.toPtFromMm(5);
+  const tickLineCommands = Array.from({ length: 6 }, (_, index) => {
+    const tickX = x + tickStep * index;
+    return `${tickX} ${y} m ${tickX} ${y - tickHeight} l`;
+  }).join("\n");
+  const tickLabelCommands = Array.from({ length: 6 }, (_, index) => {
+    const tickX = x + tickStep * index;
+    const label = `${index * 10}`;
+    return [
+      "BT",
+      "/F1 7 Tf",
+      `${tickX} ${y - tickLabelOffset} Td`,
+      `(${label}) Tj`,
+      "ET",
+    ].join("\n");
+  }).join("\n");
   return [
     "1 0 0 RG",
     "1 0 0 rg",
     `${x} ${y} m ${x + size} ${y} l`,
     `${x + size} ${y} l ${x + size} ${y + size} l`,
+    tickLineCommands,
     "S",
+    tickLabelCommands,
     `${largeX} ${largeY} ${largeSize} ${largeSize} re`,
     "S",
     "BT",
