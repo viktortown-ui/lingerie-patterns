@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ЛЕКАЛО">
+  <rect width="512" height="512" rx="116" fill="#782f45"/>
+  <path d="M138 112v288h232v-62H212V112z" fill="#fff8f1"/>
+  <path d="M290 118c60 18 98 64 106 132-66-9-112-48-132-108z" fill="#e6aa8b"/>
+  <circle cx="342" cy="178" r="13" fill="#fff8f1"/>
+</svg>

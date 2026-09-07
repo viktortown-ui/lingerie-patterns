@@ -1,10 +1,5 @@
-# Panties Basic Module
+# Custom-fit panties module
 
-This module generates a multi-piece classic panties block with front, back, and gusset pieces (optional gusset lining).
+Parametric lower-underwear foundation drafted from seven measurements. Supports high/mid/low rise, low/classic/high leg line, full/classic/cheeky coverage, fabric and elastic profiles, edge finishing, shaped gusset, optional lining, and 0/6/8/10 mm joining allowances.
 
-## Notes
-- Units are in centimeters.
-- Front/back panels are drafted on the fold and include a foldline annotation.
-- Gusset width defaults to 6cm (typical range 5–7cm) and can be adjusted via options.
-- Seam allowance uses an offset curve and is intended as a visual guide.
-- Draft assumes knit/stretch fabric with modest ease.
+The stitch line is authoritative. The cut line is derived per edge; the fold has zero allowance. Release status is `ready-for-toile` until physical fitting trials are complete.

@@ -1,7 +1,11 @@
 import { createEl } from "../../core/utils/dom.js";
 
 export function Toast() {
-  const el = createEl("div", { className: "toast", text: "" });
+  const el = createEl("div", {
+    className: "toast",
+    text: "",
+    attrs: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
+  });
   let timeoutId;
 
   const show = (message, duration = 2400) => {

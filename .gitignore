@@ -1,0 +1,30 @@
+# Local Windows shortcuts contain machine-specific absolute paths and user data.
+*.lnk
+
+# Dependency caches and generated desktop packages.
+node_modules/
+desktop/.packages/
+dist-desktop/
+artifacts/
+/tmp/
+/exports/
+
+# Local launcher state, logs, and temporary files.
+*.log
+*.tmp
+*.temp
+*.bak
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system metadata.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Test and coverage output.
+coverage/
+test-results/
+playwright-report/

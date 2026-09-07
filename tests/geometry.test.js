@@ -42,16 +42,21 @@ import pantiesThongModule from "../src/patterns/panties_thong_basic/module.js";
 {
   const thongWidth = 2.5;
   const draft = pantiesThongModule.draft(
-    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-    { seamAllowance: 0, thongWidthCm: thongWidth }
+    pantiesThongModule.schema.defaults,
+    {
+      ...pantiesThongModule.schema.optionDefaults,
+      seamAllowance: 0,
+      thongWidthCm: thongWidth,
+    }
   );
   const backPanel = draft.panels.find((panel) => panel.id === "back");
   assert.ok(backPanel);
-  const outline = backPanel.paths.outline;
+  const outline = backPanel.paths.cut;
   const points = outline.toPoints(80);
   const minX = Math.min(...points.map((point) => point.x));
   const curveSegments = outline.segments.filter((segment) => segment.type === "C");
   const crotchPoint = curveSegments[curveSegments.length - 1].points[3];
   const estimatedWidth = (crotchPoint.x - minX) * 2;
-  assert.ok(Math.abs(estimatedWidth - thongWidth) < 0.6);
+  const expectedWidth = thongWidth * draft.meta.engineering.scaleX;
+  assert.ok(Math.abs(estimatedWidth - expectedWidth) < 0.05);
 }

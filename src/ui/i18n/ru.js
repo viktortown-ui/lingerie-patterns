@@ -22,7 +22,7 @@ export const ru = {
   "editor.paperHelp":
     "Для точного размера печатайте в масштабе 100% / Actual size. Проверьте квадрат 100мм линейкой.",
   "editor.tracingHelp":
-    "Если обводите с экрана, используйте калибровку, чтобы 100мм совпали с линейкой (скоро).",
+    "Если обводите с экрана, нажмите «Калибровать экран» и настройте масштаб, чтобы отметка 100мм точно совпала с линейкой.",
   "editor.downloadFallback": "Если загрузка не началась, нажмите и удерживайте / откройте в новой вкладке.",
   "editor.noOptionsSelected": "Опции не выбраны",
   "editor.generateDraftFirst": "Сначала создайте выкройку",
@@ -42,9 +42,13 @@ export const ru = {
   "preview.scaleLabels": "Масштабировать подписи",
   "preview.highlightSeamAllowance": "Выделить припуск на шов",
   "preview.calibrateScreen": "Калибровать экран",
+  "preview.editPoints": "Точки A/B",
+  "preview.fullscreen": "На весь экран",
+  "preview.exitFullscreen": "Выйти из полного экрана",
   "preview.screenScale": "Масштаб экрана",
   "preview.decreaseScale": "Уменьшить масштаб",
   "preview.increaseScale": "Увеличить масштаб",
+  "preview.canvas": "Чертёж выкройки. После увеличения прокручивайте стрелками",
   "preview.noPreview": "Пока нет предпросмотра. Измени мерки, чтобы построить выкройку.",
   "preview.unavailable": "Предпросмотр недоступен.",
 

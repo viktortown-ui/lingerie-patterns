@@ -8,10 +8,19 @@ const isIOS = () => {
 
 const isWebKit = () => /AppleWebKit/i.test(navigator.userAgent || "");
 
-const scheduleRevoke = (url) => {
-  const revoke = () => URL.revokeObjectURL(url);
-  window.setTimeout(revoke, 45000);
-  window.addEventListener("pagehide", revoke, { once: true });
+export const scheduleRevoke = (url, delayMs = 45000) => {
+  let active = true;
+  let timerId = null;
+  const cleanup = () => {
+    if (!active) return;
+    active = false;
+    if (timerId !== null) window.clearTimeout(timerId);
+    window.removeEventListener("pagehide", cleanup);
+    URL.revokeObjectURL(url);
+  };
+  timerId = window.setTimeout(cleanup, delayMs);
+  window.addEventListener("pagehide", cleanup, { once: true });
+  return cleanup;
 };
 
 const tryOpen = (url) => {

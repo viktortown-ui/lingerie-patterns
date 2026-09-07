@@ -14,6 +14,8 @@ function findFixture(schema) {
   return fixtures.find((fixture) => schema.fields.every((field) => field.key in fixture));
 }
 
+const pick = (source, keys) => Object.fromEntries(keys.map((key) => [key, source[key]]));
+
 modules.forEach((module) => {
   const { schema } = module;
   assert.ok(schema, `${module.id} missing schema`);
@@ -35,6 +37,12 @@ modules.forEach((module) => {
       assert.ok(option.key);
       assert.ok(Array.isArray(option.choices));
       assert.ok(option.choices.length > 0);
+      assert.ok(
+        option.choices.some(
+          (choice) => String(choice.value) === String(schema.optionDefaults?.[option.key])
+        ),
+        `${module.id}.${option.key} has an invalid default`
+      );
     });
     assert.ok(schema.optionDefaults);
   }
@@ -42,10 +50,11 @@ modules.forEach((module) => {
   const fixture = findFixture(schema);
   assert.ok(fixture, `No fixture covers ${module.id}`);
 
-  const measurements = { ...schema.defaults, ...fixture };
-  const options = { ...(schema.optionDefaults || {}) };
+  const values = { ...schema.defaults, ...(schema.optionDefaults || {}), ...fixture };
+  const measurements = pick(values, schema.fields.map((field) => field.key));
+  const options = pick(values, (schema.options || []).map((option) => option.key));
 
-  const fieldErrors = validateSchema(schema, measurements);
+  const fieldErrors = validateSchema(schema, values);
   assert.equal(Object.keys(fieldErrors).length, 0, `Schema errors for ${module.id}`);
 
   const draft = module.draft(measurements, options);
@@ -57,7 +66,21 @@ modules.forEach((module) => {
   assert.ok(draft.meta.moduleId);
   assert.ok(draft.meta.moduleVersion);
 
-  const svg = svgExport(draft, ["Contract"]);
+  if (module.id.startsWith("panties_")) {
+    assert.equal(schema.fields.length, 7, `${module.id} must use the seven-measurement contract`);
+    assert.ok(draft.panels.length >= 3);
+    draft.panels.forEach((panel) => {
+      assert.ok(panel.paths.cut, `${module.id}.${panel.id} missing cut path`);
+      assert.ok(panel.paths.seam, `${module.id}.${panel.id} missing seam path`);
+      assert.notEqual(panel.paths.cut, panel.paths.seam);
+    });
+    assert.ok(draft.annotations.some((annotation) => annotation.type === "stretchline"));
+    assert.equal(draft.meta.edgeAllowancesMm.fold, 0);
+  }
+
+  const svg = svgExport(draft, ["Contract"], {
+    resolveText: (value) => value?.en || value?.ru || String(value ?? ""),
+  });
   assert.ok(svg.includes("<svg"), `${module.id} svg missing <svg>`);
   assert.ok(svg.includes("viewBox"), `${module.id} svg missing viewBox`);
 });

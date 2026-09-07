@@ -1,59 +1,102 @@
-# Technical Specification
+# Техническая спецификация
 
-## Overview
-This app is a static, offline-capable, ES-module based pattern generator. It runs by opening `/index.html` directly and does not require a backend or build step.
+## Назначение и границы
 
-## Architecture
-- `index.html` boots `/assets/js/main.js`.
-- `assets/js/main.js` initializes theme, registers pattern modules, and routes between `Home` and `Editor`.
-- Core libraries in `/src/core` are framework-agnostic and do not reference specific modules.
+ЛЕКАЛО — статическое offline-first приложение без backend и сборочного шага. Проверяемая область релиза 1.3 — эластичный низ белья, личные шаблоны фасона без мерок и безопасный просмотр статических SVG-заготовок; мягкий бралетт без каркасов и эластичный топ остаются экспериментальными основами с отдельной системой из 11 мерок. Каркасные бюстгальтеры не включены: для них нужны типоразмеры каркасов, объёмные чашки и отдельная физическая лаборатория посадки.
 
-## Core subsystems
-- Geometry: `Point`, `Path`, cubic Beziers, and a simple offset helper for seam allowance.
-- Pattern registry: `PatternModule` and `registry` for discovery.
-- Validation: schema validation for measurement inputs.
-- Export: SVG and PDF tiling (A4/A3) with page labels, alignment marks, and calibration mark.
-- UI: dynamic form rendering, preview, and export actions.
-  - Preview supports CAD-like labels that can stay screen-sized while geometry scales.
+## Запуск
 
-## Offline strategy
-A small service worker (`/sw.js`) caches the app shell on first load for offline use.
+Пользователь запускает ярлык `ЛЕКАЛО.lnk` с собственной иконкой. Он вызывает скрытый VBS-слой, а тот — `scripts/Start-LocalApp.ps1`, поэтому окно CMD не появляется. Встроенный сервер на .NET слушает только loopback `127.0.0.1:57021` и открывает Edge в app-mode. Постоянный origin сохраняет доступ к тем же браузерным профилям и черновикам после перезапуска. Быстрый путь использует state текущей папки; если та же физическая папка пришла через junction/алиас, launcher принимает сервер только после проверки health service, PID владельца loopback-порта, instance id и командной строки. Общий стартовый mutex сериализует одновременные нажатия из разных путей, а точная ошибка пишется в `%LOCALAPPDATA%\PatternStudioLocal\launcher-errors.log`. Чужой процесс на порту не подменяется и адрес не меняется молча. Сервер проверяет `Host`, блокирует скрытые пути и обслуживает запросы ограниченным числом работников с дедлайном. Нет зависимости от Python, Node.js, прав администратора или установки службы. CMD-файлы оставлены для запасного запуска, остановки и диагностики.
 
-## Storage
-Measurement profiles and theme preference are stored in `localStorage`.
+Прямой `file://` не поддерживается, потому что приложение использует нативные ES-модули. GitHub Pages и любой обычный статический HTTP-хостинг поддерживаются.
 
-## Print scale & PDF tiling
-- **True-scale conversion** uses: `inches = mm / 25.4`, `pt = inches * 72`.
-- PDF page sizes supported: **A4** (210×297mm) and **A3** (297×420mm).
-- Content area per page is page size minus margin (default 10mm).
-- Tiling uses row/column math: `cols = ceil(widthMm / contentWidthMm)`, `rows = ceil(heightMm / contentHeightMm)`.
-- Page IDs are labeled as `R{row}C{col}` for assembly.
-- The first page includes **50mm + 100mm calibration marks** and print instructions.
-- Alignment marks include corner and midpoint crosses to aid tile assembly.
+## Архитектура
 
-## SVG export scaling
-- `svgExport` computes the `viewBox` from geometry bounds plus margins.
-- `preserveAspectRatio` is fixed to `xMinYMin meet` to make resizing deterministic.
-- The SVG `width`/`height` are specified in millimeters for true-scale printing.
+```text
+index.html
+└─ assets/js/main.js        запуск, реестр, простой маршрут
+   ├─ src/ui                Home, Editor, wizard, preview, state
+   ├─ src/patterns          независимые модули изделий
+   └─ src/core
+      ├─ geometry           Point, Path, Bezier, Offset
+      ├─ pattern            контракт модуля и аннотации
+      ├─ validate           полевые и связанные ограничения
+      ├─ grading            индивидуальные и правиловые пакетные пересчёты
+      ├─ templates          строгие шаблоны фасона без мерок
+      ├─ import             безопасная нормализация статического SVG
+      └─ export             SVG, PDF, ASCII DXF и проверяемый ZIP
+```
 
-## Preview labels
-- Geometry is rendered in SVG and scaled via the preview zoom/pan system.
-- When **Scale labels** is off, labels render in an HTML overlay positioned using `getScreenCTM`.
-- When **Scale labels** is on, labels remain inside SVG and scale with geometry.
+Никакие сетевые API не участвуют в построении. UI формируется DOM-методами, фреймворков и runtime-зависимостей нет.
 
-## Module registry
-- `/src/patterns/index.js` exports an array of modules that should be registered at boot.
-- `/assets/js/main.js` loops through the registry and calls `registerModule` for each module.
-- The `Home` screen renders modules from the registry, and the `Editor` builds forms from each module's schema.
+Интерфейс использует четыре адаптивных слоя: компактный телефон до 720 CSS px, двухпанельный планшет 721–1000 px, двухпанельный ноутбук/широкий планшет 1001–1400 px и трёхпанельный desktop. На телефоне разделы доступны из нижней панели, панель чертежа прокручивается горизонтально независимо, а сенсорные цели имеют размер не меньше 44 CSS px. Safe-area, динамическая высота `dvh`, низкая landscape-ориентация и split-screen обрабатываются CSS без ответвления геометрического движка.
 
-## Adding a new module
-1. Create a new folder in `/src/patterns/<module_id>/`.
-2. Add `schema.js` with measurement fields, defaults, and any options.
-3. Add `draft.js` that returns a `DraftResult` (paths, annotations, meta).
-4. Add `module.js` that instantiates `PatternModule` with id/name/category/version/schema/draft.
-5. Export the module in `/src/patterns/index.js`.
-6. Add fixtures in `/tests/fixtures/` for contract tests.
-7. Run the tests to confirm `module_contract.test.js` passes.
+Редактор держит ограниченную историю из 60 снимков текущих мерок, опций и безопасных поправок. Undo/redo не меняет формулы: оно возвращает входные данные и запускает обычную валидацию и полное повторное построение.
 
-## Extension hooks
-`/src/core/extensions/assistantHooks.js` defines no-op hook points for future AI assistance integrations.
+## Данные и версии
+
+В `localStorage` под ключом `lingerie-pattern-state` сохраняются язык, тема, текущий модуль, `draftsByModule`, формат бумаги, профили и `selectedProfileByModule`. Каждый модуль получает собственный несохранённый черновик и выбранный профиль. Профиль содержит устойчивый id, `moduleId`, `schemaVersion`, мерки, опции, безопасные поправки и дату. Экспортируемый проект `lekalo-project` версии 2 содержит версию контейнера и модуля.
+
+Импорт проекта всегда пересчитывает геометрию текущим кодом. Несовместимый модуль, невалидные мерки, неизвестные значения опций и повреждённые поправки отклоняются. Строковые JSON-представления допустимых числовых/логических опций канонизируются к типам схемы. Импорт резервной копии атомарен: смешанный валидный/невалидный набор не меняет состояние. При запрете `localStorage` приложение остаётся работоспособным в сеансе и показывает честный статус без автосохранения.
+
+Шаблоны фасона имеют отдельный контейнер `lekalo-style-template` и хранят только `moduleId`, точную `moduleVersion`, опции, ограниченные поправки, название, автора, источник и лицензию. Поле мерок запрещено контрактом. Активная библиотека и карантин совместимых по формату, но устаревших версий хранятся в разных ключах `localStorage`; трёхфазная запись сохраняет резервную копию до подтверждения активной записи, а повреждённая библиотека не перезаписывается частично. Событие `storage` обновляет библиотеку в других вкладках, а неподтверждённая конкурентная замена блокируется.
+
+Статический SVG сначала разбирается ограниченным XML/SVG-парсером без DOM-вставки исходного текста, затем сохраняется как инертная нормализованная геометрия в IndexedDB. При недоступности IndexedDB используется только память текущего сеанса. Статическая запись всегда получает статус `personal-unverified` и не может приобрести мерки, формулы, градацию или производственный флаг через импорт. Успешная постоянная запись или удаление посылает только сигнал обновления через `BroadcastChannel` с `localStorage`-fallback; другая вкладка перечитывает собственную IndexedDB, а не получает геометрию в сообщении.
+
+## Геометрический контракт
+
+- линия строчки (`seam`) является расчётным контуром изделия;
+- линия кроя (`cut`) выводится из неё с учётом припуска каждого типа края;
+- сгиб получает 0 мм;
+- боковые швы переда и спинки строятся общей высоты;
+- передний и задний швы ластовицы имеют независимые ширины;
+- A1/A2/B1/B2/C1 являются ограниченными параметрами повторного построения низа, а C1 сохраняет общую высоту парных боковых швов;
+- верхние основы используют общие исходные мерки, но сохраняют статус `experimental` и не заявляют проверенную поддержку;
+- каждая деталь несёт `grainline`, `stretchline`, метки и технологические данные;
+- все координаты хранятся в сантиметрах и должны быть конечными числами.
+
+Горизонтальный масштаб эластичного изделия:
+
+```text
+scale = 1 / (1 + workingStretchPercent / 100)
+```
+
+Это обратное преобразование от размера тела к размеру детали при заданном рабочем растяжении. Продольный масштаб рассчитывается отдельно.
+
+## Экспорт
+
+SVG получает физические `width`/`height` в миллиметрах, детерминированный `viewBox` и XML-экранирование. В режиме preview из SVG исключаются печатные карточки и калибровка.
+
+PDF поддерживает A4, A3, Letter и A0. Страница 1 резервируется под калибровку и инструкцию. Детали раскладываются на последующие листы по двум осям с повторением геометрии в зоне нахлёста. Служебные заголовки и карта листов рисуются вне области лекал. Перевод миллиметров в PDF points: `pt = mm / 25.4 × 72`.
+
+DXF экспортируется в детерминированный ASCII DXF R12 с явно объявленными единицами и слоями `CUT`, `SEAM`, `NOTCH`, `GRAIN`, `TEXT`. Кубические кривые преобразуются в замкнутые полилинии с настраиваемым допуском (по умолчанию 0,2 мм). Метаданные деталей записываются в зарегистрированное XDATA-приложение `LEKALO`. Экспорт блокируется при неизвестных единицах, незамкнутых контурах и нечисловых координатах, затем повторно читается строгим DXF-парсером.
+
+Это семантически ориентированный обмен для швейных CAD, но не сертифицированный AAMA/ASTM-профиль. Контрольный файл принят, сохранён и снова открыт независимой библиотекой `ezdxf`, что подтверждает читаемость структуры, но не заменяет целевую производственную CAD. До производственного статуса обязателен round-trip через систему выбранного цеха с проверкой масштаба, кривых, надсечек, долевой и метаданных.
+
+Размерный пакет хранит отдельный DXF на каждый именованный вариант и JSON-manifest в детерминированном ZIP32 без сжатия. Проверяются структура ZIP, CRC и повторное чтение каждого DXF. Пакет по полным меркам называется индивидуальным пересчётом; пакет по прибавкам к базовым меркам — правиловым пересчётом. Оба режима намеренно помечены `industrialPointGrade: false`.
+
+## Offline
+
+Service Worker предварительно кэширует оболочку и полный статический граф ES-модулей, использует network-first с четырёхсекундным дедлайном для HTML/JS/CSS и cache-first для остальных ресурсов. HTML-оболочка никогда не подставляется вместо отсутствующего JS/CSS. Номер `BUILD` меняется при релизе, старые кэши удаляются при активации. Локальный launcher работает и без Service Worker; кэш нужен для установленной PWA/GitHub Pages.
+
+## Проверки
+
+Команда `node --test` охватывает:
+
+- базовую геометрию и offset;
+- контракт всех публичных модулей;
+- наборы пропорций и граничные мерки;
+- конечность/замкнутость контуров, самопересечения и сопряжение;
+- семантику линий SVG, локализацию и XML-безопасность;
+- размеры страниц, калибровку, тайлинг и нахлёст PDF;
+- единицы, слои, замкнутость и внутренний round-trip DXF;
+- детерминированность размерных пакетов и ZIP, CRC и опасные пути;
+- миграцию состояния, отказ хранилища, профили/черновики по моделям, типы опций и очистку ресурсов preview/download;
+- верхние основы на минимальных, исходных и максимальных мерках;
+- строгий контракт шаблонов, отсутствие мерок, совместимость версий и атомарное локальное хранение;
+- безопасный SVG-разбор, лимиты сложности, блокировку активного содержимого, калибровку, хэш источника и нормализованный экспорт;
+- русскую/английскую локализацию.
+
+Релизный fuzz-аудит отдельно строит допустимые случайные сочетания мерок, опций и A/B/C-поправок для каждого публичного модуля, проверяет конечность, замкнутость и отсутствие самопересечений, затем формирует SVG/DXF и выборочно PDF. Найденные сочетания становятся постоянными регрессионными тестами.
+
+Перед публичной пометкой «проверено посадкой» отдельно нужны реальные распечатки и серия физических макетов.

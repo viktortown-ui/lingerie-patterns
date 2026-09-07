@@ -4,9 +4,15 @@ import { draftPanties } from "./draft.js";
 
 const module = new PatternModule({
   id: "panties_basic",
-  name: "module.panties_basic.name",
+  name: schema.name,
   category: "module.panties_basic.category",
-  version: "0.2.0",
+  version: "1.0.0",
+  description: {
+    ru: "Классика, высокая и низкая посадка, три линии ноги и три варианта покрытия.",
+    en: "High, mid, and low rise with three leg lines and three coverage options.",
+  },
+  status: "ready-for-toile",
+  tags: ["7 мерок", "растяжимость", "A4 / A3 / Letter"],
   schema,
   draft: draftPanties,
 });

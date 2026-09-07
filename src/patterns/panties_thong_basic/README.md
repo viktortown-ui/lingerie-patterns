@@ -1,10 +1,5 @@
-# Panties Thong Basic Module
+# Custom thong and tanga module
 
-This module generates a thong pattern with separate front, back, and gusset pieces. The back panel narrows into a thong strap controlled by the thong width option.
+Parametric thong/tanga foundation drafted from seven measurements. The front gusset width and narrow back width are independent; the finished back width is configurable from 1.5 to 3.5 cm before the fabric stretch transformation.
 
-## Notes
-- Units are in centimeters.
-- Front/back panels are drafted on the fold and include foldline annotations.
-- Thong width controls the strap width at the narrowest point.
-- Seam allowance uses an offset curve and is intended as a visual guide.
-- Draft assumes knit/stretch fabric with modest ease.
+The module shares fabric, elastic, rise, leg, gusset, finishing, allowance, verification, material, and export infrastructure with the classic panties module. Release status is `ready-for-toile` until physical fitting trials are complete.

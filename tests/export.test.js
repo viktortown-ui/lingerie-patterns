@@ -5,9 +5,12 @@ import rectangleModule from "../src/patterns/test_rectangle/module.js";
 import { svgExport } from "../src/core/export/svgExport.js";
 import { pdfExport } from "../src/core/export/pdfExport.js";
 
+const measurements = { ...pantiesModule.schema.defaults };
+const defaultOptions = { ...pantiesModule.schema.optionDefaults };
+
 const draft = pantiesModule.draft(
-  { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-  { seamAllowance: 0, style: "classic" }
+  measurements,
+  { ...defaultOptions, seamAllowance: 0 }
 );
 
 {
@@ -16,6 +19,8 @@ const draft = pantiesModule.draft(
   assert.ok(svg.includes("viewBox"));
   assert.ok(svg.includes('id="calibration-50mm"'));
   assert.ok(svg.includes('id="calibration-100mm"'));
+  assert.ok(svg.includes('data-role="cut"'));
+  assert.ok(!svg.includes('data-role="seam"'));
 }
 
 {
@@ -32,7 +37,7 @@ const draft = pantiesModule.draft(
     paperSize: "A4",
     info: {
       moduleName: "Panties Basic",
-      optionsSummary: "Style: Classic, Seam allowance: 0mm",
+      optionsSummary: "Rise: Mid, leg line: Classic, seam allowance: 0mm",
     },
     labels: {
       patternLabel: "Pattern",
@@ -48,25 +53,27 @@ const draft = pantiesModule.draft(
   assert.ok(pdfText.includes("GLUE LINE"));
   assert.ok(pdfText.includes("Assembly Map"));
   assert.ok(pdfText.includes("Pattern: Panties Basic") || !pdfText.includes("module.panties_basic.name"));
-  assert.ok(pdfText.includes("Options: Style: Classic"));
+  assert.ok(pdfText.includes("Options: Rise: Mid"));
   assert.ok(pdfText.includes("Seam allowance: 0mm"));
   assert.ok(/^[\x00-\x7F]*$/.test(pdfText));
 }
 
 {
   const seamDraft = pantiesModule.draft(
-    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-    { seamAllowance: 6, style: "classic" }
+    measurements,
+    { ...defaultOptions, seamAllowance: 6 }
   );
   const svg = svgExport(seamDraft, ["Test"]);
   assert.ok(svg.includes("stroke-dasharray"));
+  assert.ok(svg.includes('data-role="cut"'));
+  assert.ok(svg.includes('data-role="seam"'));
   assert.ok(svg.includes("Cut line / Stitch line"));
 }
 
 {
   const seamDraft = pantiesModule.draft(
-    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-    { seamAllowance: 6, style: "classic" }
+    measurements,
+    { ...defaultOptions, seamAllowance: 6 }
   );
   const { data } = pdfExport(seamDraft, { marginMm: 10, paperSize: "A4", info: { legendText: "Legend: cut line = solid, stitch line = dashed" } });
   const pdfText = await data.text();
@@ -100,8 +107,8 @@ const draft = pantiesModule.draft(
 
 {
   const thongDraft = pantiesThongModule.draft(
-    { waist: 70, hip: 95, rise: 23, legOpening: 55 },
-    { seamAllowance: 0, thongWidthCm: 2 }
+    pantiesThongModule.schema.defaults,
+    { ...pantiesThongModule.schema.optionDefaults, seamAllowance: 0, thongWidthCm: 2 }
   );
   assert.ok(thongDraft.panels.length >= 3);
 }
