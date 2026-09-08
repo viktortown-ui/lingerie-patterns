@@ -1,4 +1,5 @@
 import { TEMPLATE_FORMAT_VERSION, TEMPLATE_KIND } from "./templateModel.js";
+import { APP_VERSION } from "../app/version.js";
 
 const commonLicense = Object.freeze({
   spdx: "MIT",
@@ -11,7 +12,7 @@ const commonProvenance = Object.freeze({
   author: "LEKALO contributors",
   source: "Original LEKALO preset assembled from the public module option schema.",
   sourceUrl: "https://github.com/viktortown-ui/lingerie-patterns",
-  sourceVersion: "1.3.0",
+  sourceVersion: APP_VERSION,
 });
 
 const neutralAdjustments = Object.freeze({

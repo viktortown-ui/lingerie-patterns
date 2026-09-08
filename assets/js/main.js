@@ -1,4 +1,5 @@
 import { getModule, getModules, registerModule } from "../../src/core/pattern/registry.js";
+import { APP_VERSION } from "../../src/core/app/version.js";
 import {
   BUILT_IN_UNDERWEAR_TEMPLATES,
   exportTemplateJson,
@@ -17,6 +18,7 @@ import {
 } from "../../src/core/import/staticPatternStore.js";
 import { uid } from "../../src/core/utils/id.js";
 import { StaticImportDialog } from "../../src/ui/components/StaticImportDialog.js";
+import { HelpCenter } from "../../src/ui/components/HelpCenter.js";
 import { Toast } from "../../src/ui/components/Toast.js";
 import { getLocale, setLocale } from "../../src/ui/i18n/i18n.js";
 import { Editor } from "../../src/ui/screens/Editor.js";
@@ -88,6 +90,10 @@ if (state.selectedModuleId && !getModule(state.selectedModuleId)) {
 initTheme(state.theme);
 setLocale(state.language);
 logI18n("boot locale", getLocale());
+
+const helpCenter = HelpCenter({ language: state.language });
+document.body.appendChild(helpCenter.el);
+const openHelp = (topicId = "quick-start") => helpCenter.open(topicId, state.language);
 
 let localStorageRef = null;
 let sessionStorageRef = null;
@@ -287,7 +293,7 @@ function makeUserTemplate({ moduleId, moduleVersion, metadata, options, adjustme
       kind: "original",
       author,
       source: "Created locally in LEKALO Pattern Studio.",
-      sourceVersion: "1.3.0",
+      sourceVersion: APP_VERSION,
       ...(metadata?.sourceUrl ? { sourceUrl: metadata.sourceUrl } : {}),
     },
     options: { ...options },
@@ -618,6 +624,7 @@ function renderHome({ resetScroll = true, preserveStaticRoute = false } = {}) {
     onImportSvg: importStaticPattern,
     onOpenStatic: (pattern) => openStaticPattern(pattern.id),
     onDeleteStatic: removeStaticPattern,
+    onOpenHelp: openHelp,
     onThemeToggle: (theme) => {
       state = setState({ theme });
     },
@@ -669,6 +676,7 @@ function renderEditor(moduleId) {
     onPaperSizeChange: (paperSize) => {
       state = setState({ paperSize });
     },
+    onOpenHelp: openHelp,
   }));
   window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }
@@ -721,6 +729,7 @@ function renderStaticPattern(pattern) {
       state = setState({ theme });
     },
     onLanguageToggle: handleLanguageToggle,
+    onOpenHelp: openHelp,
   }));
   window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }

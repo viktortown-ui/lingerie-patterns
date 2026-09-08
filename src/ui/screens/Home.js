@@ -1,5 +1,7 @@
 import { createEl } from "../../core/utils/dom.js";
+import { APP_VERSION } from "../../core/app/version.js";
 import { LibraryHub } from "../components/LibraryHub.js";
+import { HelpButton } from "../components/HelpButton.js";
 import { resolveText } from "../i18n/i18n.js";
 import { toggleTheme } from "../styles/theme.js";
 
@@ -82,17 +84,22 @@ export function Home({
   onImportSvg = async () => {},
   onOpenStatic = () => {},
   onDeleteStatic = () => {},
+  onOpenHelp = () => {},
 }) {
   const page = createEl("div", { className: "home-page" });
   const header = createEl("header", { className: "app-header" });
   const headerActions = createEl("div", { className: "header-actions" });
   const themeButton = createEl("button", {
-    className: "icon-button",
+    className: "icon-button theme-button",
     text: copy(language, "Сменить тему", "Toggle theme"),
     attrs: { type: "button" },
   });
   themeButton.addEventListener("click", () => onThemeToggle(toggleTheme()));
-  headerActions.append(languageControl(language, onLanguageToggle), themeButton);
+  headerActions.append(
+    languageControl(language, onLanguageToggle),
+    HelpButton({ language, onOpen: onOpenHelp, topic: "quick-start" }),
+    themeButton,
+  );
   header.append(brand(), headerActions);
 
   const hero = createEl("section", { className: "hero" });
@@ -114,7 +121,7 @@ export function Home({
   );
   const promises = createEl("div", { className: "promise-row" });
   [
-    copy(language, "Мерки остаются на компьютере", "Measurements stay on this computer"),
+    copy(language, "Мерки остаются на этом устройстве", "Measurements stay on this device"),
     copy(language, "Работает без интернета", "Works offline"),
     copy(language, "SVG + PDF + проверяемый DXF", "SVG + PDF + checked DXF"),
   ].forEach((text) => promises.appendChild(createEl("span", { text })));
@@ -193,6 +200,7 @@ export function Home({
     onImportSvg,
     onOpenStatic,
     onDeleteStatic,
+    onOpenHelp,
   });
 
   const trust = createEl("section", { className: "trust-strip" });
@@ -211,7 +219,7 @@ export function Home({
 
   const footer = createEl("footer", { className: "app-footer" });
   footer.append(
-    createEl("span", { text: "ЛЕКАЛО Pattern Studio • 1.3" }),
+    createEl("span", { text: `ЛЕКАЛО Pattern Studio • ${APP_VERSION}` }),
     createEl("span", { text: copy(language, "Открытая архитектура • локальные данные", "Open architecture • local data") }),
   );
 

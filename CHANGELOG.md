@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 — 2026-09-08
+
+- Added a searchable bilingual in-app Help Center with contextual entry points on the home, editor, static-pattern, and library screens.
+- Documented the complete local workflow for measurements, A/B/C fit controls, projects, legal pattern/template additions, SVG scale validation, PDF/DXF export, size sets, privacy, and physical-toile limits.
+- Kept the help experience responsive as a two-column dialog on desktop/tablet and a full-screen sheet on phones, without rerendering or resetting the active editor history.
+- Made cross-platform feature parity an enforced release rule: Windows packages mirror the shared web frontend byte-for-byte, and every JavaScript module reachable from the public entry point must be present in the offline cache.
+- Expanded the Windows rendered-UI smoke test to open the packaged Help Center and verify all nine navigation entries plus visible article content; tagged Windows builds now run the smoke test and publish both ZIP and SHA-256 artifacts.
+- Synchronized application and Windows metadata at `1.3.1`, advanced the offline cache to Service Worker `v22`, and corrected stale guidance about A/B/C controls, device-local data, and XXS–4XL rule-based size sets.
+
 ## 1.3.0 — 2026-09-07
 
 - Added a real Windows desktop host (`LEKALO.exe`) based on .NET Framework 4.8 and Evergreen WebView2: no CMD window, local HTTP server, browser tab, Node.js, or Python is involved at runtime.

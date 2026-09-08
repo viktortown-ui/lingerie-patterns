@@ -42,7 +42,7 @@ export const ru = {
   "preview.scaleLabels": "Масштабировать подписи",
   "preview.highlightSeamAllowance": "Выделить припуск на шов",
   "preview.calibrateScreen": "Калибровать экран",
-  "preview.editPoints": "Точки A/B",
+  "preview.editPoints": "Точки A/B/C",
   "preview.fullscreen": "На весь экран",
   "preview.exitFullscreen": "Выйти из полного экрана",
   "preview.screenScale": "Масштаб экрана",

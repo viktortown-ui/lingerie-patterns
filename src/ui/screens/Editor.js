@@ -8,6 +8,7 @@ import { createStoredZip, parseStoredZip } from "../../core/export/storedZip.js"
 import { createRuleBasedSizeBatch } from "../../core/grading/patternBatch.js";
 import { uid } from "../../core/utils/id.js";
 import { Form } from "../components/Form.js";
+import { HelpButton } from "../components/HelpButton.js";
 import { PatternAdjuster } from "../components/PatternAdjuster.js";
 import { GradingPanel } from "../components/GradingPanel.js";
 import { Preview } from "../components/Preview.js";
@@ -104,6 +105,7 @@ export function Editor({
   onThemeToggle,
   onLanguageToggle,
   onPaperSizeChange,
+  onOpenHelp = () => {},
 }) {
   const module = getModule(moduleId);
   if (!module) return createEl("div", { className: "empty-state", text: copy(language, "Модель не найдена.", "Pattern module not found.") });
@@ -123,12 +125,16 @@ export function Editor({
   );
   const headerActions = createEl("div", { className: "header-actions" });
   const themeButton = createEl("button", {
-    className: "icon-button",
+    className: "icon-button theme-button",
     text: copy(language, "Сменить тему", "Toggle theme"),
     attrs: { type: "button" },
   });
   themeButton.addEventListener("click", () => onThemeToggle(toggleTheme()));
-  headerActions.append(languageControl(language, onLanguageToggle), themeButton);
+  headerActions.append(
+    languageControl(language, onLanguageToggle),
+    HelpButton({ language, onOpen: onOpenHelp, topic: "style-controls" }),
+    themeButton,
+  );
   header.append(backButton, headerTitle, headerActions);
 
   const candidateStoredDraft = state.draftsByModule?.[moduleId]
@@ -421,7 +427,7 @@ export function Editor({
 
   function buildProfileCard() {
     profileCard.innerHTML = "";
-    addSectionTitle(profileCard, copy(language, "ЛОКАЛЬНО", "LOCAL"), copy(language, "Профили мерок", "Measurement profiles"), copy(language, "Хранятся только в этом браузере.", "Stored only in this browser."));
+    addSectionTitle(profileCard, copy(language, "ЛОКАЛЬНО", "LOCAL"), copy(language, "Профили мерок", "Measurement profiles"), copy(language, "Хранятся только в этой версии на этом устройстве.", "Stored only in this app version on this device."));
     const buttons = createEl("div", { className: "profile-actions" });
     const save = createEl("button", { className: "primary-button compact-button", text: copy(language, "Сохранить текущий", "Save current"), attrs: { type: "button" } });
     const backup = createEl("button", { className: "secondary-button compact-button", text: copy(language, "Резервная копия", "Backup"), attrs: { type: "button" } });
