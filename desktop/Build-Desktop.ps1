@@ -76,6 +76,41 @@ function Get-Sha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
 }
 
+function Assert-FrontendMirror {
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectRoot,
+        [Parameter(Mandatory = $true)][string]$AppRoot
+    )
+
+    $sourceFiles = @()
+    foreach ($directory in @('assets', 'src')) {
+        $sourceFiles += @(Get-ChildItem -LiteralPath (Join-Path $ProjectRoot $directory) -File -Recurse)
+    }
+    foreach ($file in @('index.html', 'manifest.webmanifest', 'sw.js')) {
+        $sourceFiles += @(Get-Item -LiteralPath (Join-Path $ProjectRoot $file))
+    }
+
+    $packagedFiles = @(Get-ChildItem -LiteralPath $AppRoot -File -Recurse)
+    if ($packagedFiles.Count -ne $sourceFiles.Count) {
+        throw "Packaged frontend contains $($packagedFiles.Count) files, expected $($sourceFiles.Count)."
+    }
+
+    $rootPrefixLength = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\').Length + 1
+    foreach ($sourceFile in $sourceFiles) {
+        $relativePath = $sourceFile.FullName.Substring($rootPrefixLength)
+        $packagedPath = Join-Path $AppRoot $relativePath
+        if (-not (Test-Path -LiteralPath $packagedPath -PathType Leaf)) {
+            throw "Packaged frontend is missing $relativePath."
+        }
+
+        $sourceHash = Get-Sha256 -Path $sourceFile.FullName
+        $packagedHash = Get-Sha256 -Path $packagedPath
+        if ($sourceHash -ne $packagedHash) {
+            throw "Packaged frontend differs from source: $relativePath."
+        }
+    }
+}
+
 function Get-WebView2Sdk {
     New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
 
@@ -136,6 +171,8 @@ foreach ($directory in @('assets', 'src')) {
 foreach ($file in @('index.html', 'manifest.webmanifest', 'sw.js')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $appRoot $file) -Force
 }
+
+Assert-FrontendMirror -ProjectRoot $projectRoot -AppRoot $appRoot
 
 foreach ($file in @('LICENSE', 'THIRD_PARTY_NOTICES.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $bundleRoot $file) -Force

@@ -3,7 +3,7 @@
 // while still offering an offline fallback.
 //
 // IMPORTANT: bump BUILD when you deploy a new release.
-const BUILD = "v21";
+const BUILD = "v22";
 const CACHE_NAME = `lingerie-patterns-${BUILD}`;
 const NETWORK_TIMEOUT_MS = Number.isSafeInteger(self.__LEKALO_QA_NETWORK_TIMEOUT_MS)
   && self.__LEKALO_QA_NETWORK_TIMEOUT_MS > 0
@@ -16,6 +16,7 @@ const CORE = [
   "./index.html",
   "./assets/css/app.css",
   "./assets/js/main.js",
+  "./src/core/app/version.js",
   "./src/core/export/dxfExport.js",
   "./src/core/export/dxfParser.js",
   "./src/core/export/pdfExport.js",
@@ -65,6 +66,8 @@ const CORE = [
   "./src/patterns/shared/upperBodySchema.js",
   "./src/ui/components/Form.js",
   "./src/ui/components/GradingPanel.js",
+  "./src/ui/components/HelpButton.js",
+  "./src/ui/components/HelpCenter.js",
   "./src/ui/components/LibraryHub.js",
   "./src/ui/components/PatternAdjuster.js",
   "./src/ui/components/Preview.js",
@@ -74,6 +77,7 @@ const CORE = [
   "./src/ui/i18n/en.js",
   "./src/ui/i18n/i18n.js",
   "./src/ui/i18n/ru.js",
+  "./src/ui/help/helpContent.js",
   "./src/ui/screens/Editor.js",
   "./src/ui/screens/Home.js",
   "./src/ui/screens/StaticPattern.js",

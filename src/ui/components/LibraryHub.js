@@ -127,6 +127,7 @@ export function LibraryHub({
   onImportSvg,
   onOpenStatic,
   onDeleteStatic,
+  onOpenHelp = () => {},
 }) {
   const section = createEl("section", { className: "library-hub" });
   const headingRow = createEl("div", { className: "library-heading-row" });
@@ -144,6 +145,15 @@ export function LibraryHub({
   );
   const importActions = createEl("div", { className: "library-import-actions" });
   importActions.append(
+    (() => {
+      const help = createEl("button", {
+        className: "secondary-button library-help-action",
+        text: copy(language, "Как добавлять?", "How to add?"),
+        attrs: { type: "button" },
+      });
+      help.addEventListener("click", () => onOpenHelp("add-patterns"));
+      return help;
+    })(),
     fileAction({
       text: copy(language, "Импорт шаблона", "Import template"),
       accept: "application/json,.json,.lekalo-template.json",

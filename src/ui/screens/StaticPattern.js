@@ -5,6 +5,7 @@ import {
   staticSegmentsToPathData,
 } from "../../core/import/staticPatternSvg.js";
 import { downloadBlob } from "../utils/download.js";
+import { HelpButton } from "../components/HelpButton.js";
 import { toggleTheme } from "../styles/theme.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -75,7 +76,7 @@ function makePreview(geometry, language) {
   return svg;
 }
 
-export function StaticPattern({ pattern, language, onBack, onDelete, onNotice = () => {}, onThemeToggle, onLanguageToggle }) {
+export function StaticPattern({ pattern, language, onBack, onDelete, onNotice = () => {}, onThemeToggle, onLanguageToggle, onOpenHelp = () => {} }) {
   const page = createEl("div", { className: "static-pattern-page" });
   const header = createEl("header", { className: "app-header static-pattern-header" });
   const back = createEl("button", {
@@ -90,13 +91,17 @@ export function StaticPattern({ pattern, language, onBack, onDelete, onNotice = 
     createEl("h1", { text: pattern.name }),
   );
   const theme = createEl("button", {
-    className: "icon-button",
+    className: "icon-button theme-button",
     text: copy(language, "Сменить тему", "Toggle theme"),
     attrs: { type: "button" },
   });
   theme.addEventListener("click", () => onThemeToggle(toggleTheme()));
   const headerActions = createEl("div", { className: "header-actions" });
-  headerActions.append(languageControl(language, onLanguageToggle), theme);
+  headerActions.append(
+    languageControl(language, onLanguageToggle),
+    HelpButton({ language, onOpen: onOpenHelp, topic: "svg-import" }),
+    theme,
+  );
   header.append(back, title, headerActions);
 
   const main = createEl("main", { className: "static-pattern-layout" });

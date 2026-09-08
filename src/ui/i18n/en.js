@@ -42,7 +42,7 @@ export const en = {
   "preview.scaleLabels": "Scale labels",
   "preview.highlightSeamAllowance": "Highlight seam allowance",
   "preview.calibrateScreen": "Calibrate screen",
-  "preview.editPoints": "A/B points",
+  "preview.editPoints": "A/B/C points",
   "preview.fullscreen": "Fullscreen",
   "preview.exitFullscreen": "Exit fullscreen",
   "preview.screenScale": "Screen scale",

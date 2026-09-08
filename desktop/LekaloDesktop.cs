@@ -19,9 +19,9 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyProduct("ЛЕКАЛО — Pattern Studio")]
 [assembly: AssemblyCompany("LEKALO Open Source")]
 [assembly: AssemblyCopyright("Copyright © 2026 LEKALO contributors")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
-[assembly: AssemblyInformationalVersion("1.3.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyInformationalVersion("1.3.1")]
 
 namespace Lekalo.PatternStudio.Desktop
 {
@@ -473,6 +473,10 @@ namespace Lekalo.PatternStudio.Desktop
                         "appChildren:app?app.children.length:0," +
                         "modelCards:document.querySelectorAll('.model-card').length," +
                         "presetCards:document.querySelectorAll('.preset-card').length," +
+                        "helpButtons:document.querySelectorAll('[data-help-topic]').length," +
+                        "helpDialogOpen:(function(){var dialog=document.querySelector('.help-dialog');var button=document.querySelector('[data-help-topic]');if(dialog&&!dialog.open&&button){button.click();}return !!(dialog&&dialog.open);})()," +
+                        "helpTopicButtons:document.querySelectorAll('.help-topic-button').length," +
+                        "helpVisibleTextLength:(function(){var dialog=document.querySelector('.help-dialog');return dialog?(dialog.innerText||'').trim().length:0;})()," +
                         "visibleTextLength:document.body?(document.body.innerText||'').trim().length:0" +
                         "};" +
                         "})()");
@@ -484,6 +488,10 @@ namespace Lekalo.PatternStudio.Desktop
                     int appChildren = GetInteger(lastProbe, "appChildren");
                     int modelCards = GetInteger(lastProbe, "modelCards");
                     int presetCards = GetInteger(lastProbe, "presetCards");
+                    int helpButtons = GetInteger(lastProbe, "helpButtons");
+                    bool helpDialogOpen = GetBoolean(lastProbe, "helpDialogOpen");
+                    int helpTopicButtons = GetInteger(lastProbe, "helpTopicButtons");
+                    int helpVisibleTextLength = GetInteger(lastProbe, "helpVisibleTextLength");
                     int visibleTextLength = GetInteger(lastProbe, "visibleTextLength");
 
                     bool ready = String.Equals(readyState, "complete", StringComparison.OrdinalIgnoreCase) ||
@@ -494,6 +502,10 @@ namespace Lekalo.PatternStudio.Desktop
                                    appChildren > 0 &&
                                    modelCards >= 4 &&
                                    presetCards >= 5 &&
+                                   helpButtons >= 1 &&
+                                   helpDialogOpen &&
+                                   helpTopicButtons >= 9 &&
+                                   helpVisibleTextLength > 100 &&
                                    visibleTextLength > 200;
 
                     if (success)
@@ -553,6 +565,16 @@ namespace Lekalo.PatternStudio.Desktop
                 return 0;
             }
             return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+        }
+
+        private static bool GetBoolean(IDictionary<string, object> dictionary, string key)
+        {
+            object value;
+            if (dictionary == null || !dictionary.TryGetValue(key, out value) || value == null)
+            {
+                return false;
+            }
+            return Convert.ToBoolean(value, CultureInfo.InvariantCulture);
         }
 
         private void OnDownloadStarting(object sender, CoreWebView2DownloadStartingEventArgs eventArgs)

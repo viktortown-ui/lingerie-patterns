@@ -15,8 +15,8 @@ The script:
 1. runs `npm run check`;
 2. downloads Microsoft WebView2 SDK `1.0.4191.47` from NuGet and verifies its pinned SHA-256;
 3. compiles the C# 5 source with the .NET Framework 4.8 compiler already present on supported Windows systems;
-4. copies an explicit static-app allowlist into the portable folder;
-5. starts the packaged EXE against a fresh isolated WebView2 profile and checks the rendered home screen;
+4. copies the complete shared static frontend and verifies every packaged file against the source with SHA-256;
+5. starts the packaged EXE against a fresh isolated WebView2 profile, checks the rendered home screen, and opens the complete in-app Help Center;
 6. creates a ZIP and a separate `.sha256` file in `dist-desktop`.
 
 Generated packages and the NuGet cache are intentionally excluded from Git. Tagged builds can also be produced by `.github/workflows/desktop-package.yml`.
