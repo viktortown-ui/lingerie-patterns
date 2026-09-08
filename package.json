@@ -1,0 +1,11 @@
+{
+  "name": "lekalo-pattern-studio",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check assets/js/main.js && node --test"
+  },
+  "license": "MIT"
+}

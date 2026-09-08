@@ -22,7 +22,7 @@ export const en = {
   "editor.paperHelp":
     "For accurate size: print at 100% / Actual size. Verify the 100mm square with a ruler.",
   "editor.tracingHelp":
-    "If you trace from screen, use calibration to match 100mm with a ruler (coming next).",
+    "If you trace from screen, choose Calibrate screen and adjust the scale until the 100mm mark matches a ruler exactly.",
   "editor.downloadFallback": "If download didn’t start, tap and hold / open in new tab.",
   "editor.noOptionsSelected": "No options selected",
   "editor.generateDraftFirst": "Generate a draft first",
@@ -42,9 +42,13 @@ export const en = {
   "preview.scaleLabels": "Scale labels",
   "preview.highlightSeamAllowance": "Highlight seam allowance",
   "preview.calibrateScreen": "Calibrate screen",
+  "preview.editPoints": "A/B points",
+  "preview.fullscreen": "Fullscreen",
+  "preview.exitFullscreen": "Exit fullscreen",
   "preview.screenScale": "Screen scale",
   "preview.decreaseScale": "Decrease screen scale",
   "preview.increaseScale": "Increase screen scale",
+  "preview.canvas": "Pattern drawing. After zooming, pan with the arrow keys",
   "preview.noPreview": "No preview yet. Change a measurement to generate the draft.",
   "preview.unavailable": "Preview unavailable.",
 

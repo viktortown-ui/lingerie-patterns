@@ -100,9 +100,16 @@ function offsetPolyline(points, offset, { closed, miterLimit }) {
 export function offsetPath(path, offset) {
   if (!Number.isFinite(offset) || offset === 0) return path;
   const hasCurves = path.segments.some((segment) => segment.type === "C");
-  const points = path.toPoints(hasCurves ? 80 : 12);
-  if (points.length < 2) return path;
   const closed = path.segments.some((segment) => segment.type === "Z");
+  let points = path.toPoints(hasCurves ? 80 : 12);
+  // A closed Path may explicitly finish on its move point before the trailing
+  // Z.  Keeping that duplicate makes the final zero-length edge disappear
+  // while offsetPolyline still iterates the old point count, so the first join
+  // is emitted twice and creates a small self-intersecting loop.
+  if (closed && points.length > 1 && pointsEqual(points[0], points.at(-1))) {
+    points = points.slice(0, -1);
+  }
+  if (points.length < (closed ? 3 : 2)) return path;
   const area = closed
     ? points.reduce((sum, point, index) => {
         const next = points[(index + 1) % points.length];

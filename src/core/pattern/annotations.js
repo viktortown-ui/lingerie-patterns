@@ -18,6 +18,10 @@ export function foldline(start, end, labelText = "Fold") {
   return { type: "foldline", start, end, label: labelText };
 }
 
+export function stretchline(start, end, labelText = "Greatest stretch") {
+  return { type: "stretchline", start, end, label: labelText };
+}
+
 export function controlPoint(point, labelText = "CP") {
   return { type: "control", point, label: labelText };
 }

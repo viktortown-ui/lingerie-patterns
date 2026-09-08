@@ -1,157 +1,73 @@
-# Plan
+# Дорожная карта продукта
 
-## Phase 1 — Audit summary
+## 1.0 — локальная лаборатория низа белья
 
-### Export + preview scaling (current state)
-- **`src/core/export/svgExport.js`**
-  - `viewBox` is derived from geometry bounds + margins and width/height are output in **mm**. This is good for print scale, but `preserveAspectRatio` is not fixed, so rendering can vary between environments.
-  - Labels are rendered inside SVG. In preview mode this causes labels to scale with zoom, making them unreadable at high zoom levels.
-- **`src/ui/components/Preview.js`**
-  - Preview removes SVG `width/height` and uses pixel scaling. The zoom logic scales the entire SVG, including `text`.
-  - The label toggle currently shows/hides labels rather than controlling scalable vs fixed labels.
-- **`src/core/export/pdfExport.js`**
-  - PDF tiling uses true unit conversion and adds alignment marks + a 50mm calibration mark. It does not include a larger control mark and has limited alignment crosses.
+- [x] русский desktop-first интерфейс и мастер из четырёх шагов;
+- [x] классические трусики, стринги и танга;
+- [x] семь связанных мерок;
+- [x] ткань, резинка, фасон, ластовица и обработка краёв;
+- [x] отдельные линии кроя/строчки и припуски по типам краёв;
+- [x] геометрические проверки, расход и порядок пошива;
+- [x] SVG, PDF A4/A3/Letter/A0, проект JSON;
+- [x] профили, backup/import, offline/PWA;
+- [x] локальный Windows launcher без внешних зависимостей и ярлык с иконкой без окна CMD;
+- [x] открытая MIT-лицензия и техническая документация.
 
-### Issues by file
-- `src/core/export/svgExport.js`
-  - Missing fixed `preserveAspectRatio`.
-  - Preview labels are tied to SVG scale (not CAD-like).
-- `src/ui/components/Preview.js`
-  - Zoom applies to all SVG contents, including text labels.
-  - Label toggle is not persisted and does not support non-scaling labels.
-- `src/core/export/pdfExport.js`
-  - Calibration mark only 50mm; alignment marks could be clearer for tile assembly.
-- `assets/css/app.css`
-  - Safe-area padding is limited to top/bottom; side insets are not handled.
+## 1.1 — управляемые линии, размерный ряд и новые основы
 
-## Phase 1 — Refactor plan (minimal changes)
-1. **SVG export hardening**
-   - Fix `preserveAspectRatio` to a deterministic value and document it.
-   - Add a 100mm calibration square/mark.
-2. **Preview label architecture**
-   - Introduce HTML overlay labels in preview and position them with `getScreenCTM`.
-   - Add a **Scale labels** toggle persisted in `localStorage`.
-3. **PDF export hardening**
-   - Add clearer tile alignment marks (midpoint crosses) and a 100mm calibration square.
-   - Update print instructions in docs.
-4. **Module API polish**
-   - Document `panels` for multi-piece drafts and clarify cut/seam naming.
-   - Add extension hooks file for future assistant integration.
-5. **Mobile UX**
-   - Add safe-area left/right padding in the base layout/topbar.
+- [x] безопасные именованные регуляторы A1/A2/B1/B2/C1 для формы низа: число и перетаскиваемый маркер;
+- [x] повторная геометрическая проверка после каждой поправки и сохранение поправок в черновике, профиле и проекте;
+- [x] полноэкранный просмотр, настоящее вписывание ниже 25% и исправление подписей/чисел на широких, узких и масштабированных экранах;
+- [x] прозрачный размерный ряд XS–XL с редактируемыми прибавками мерок и независимым перестроением каждого варианта;
+- [x] отдельные DXF и детерминированный ZIP с manifest для размерного ряда;
+- [x] ASCII DXF R12 в миллиметрах со слоями `CUT`, `SEAM`, `NOTCH`, `GRAIN`, `TEXT`, внутренним round-trip и независимой проверкой читаемости через `ezdxf`;
+- [x] экспериментальные основы мягкого бралетта без каркасов и эластичного топа по 11 меркам;
+- [x] отдельный черновик и выбранный профиль для каждой модели, атомарный импорт и устойчивое поведение без `localStorage`;
+- [x] запуск ярлыком `ЛЕКАЛО` с собственной иконкой без окна CMD.
 
-## File list
-- /index.html
-- /assets/css/app.css
-- /assets/js/main.js
-- /src/core/geometry/Point.js
-- /src/core/geometry/Path.js
-- /src/core/geometry/Bezier.js
-- /src/core/geometry/Offset.js
-- /src/core/geometry/Units.js
-- /src/core/pattern/PatternModule.js
-- /src/core/pattern/registry.js
-- /src/core/pattern/annotations.js
-- /src/core/export/svgExport.js
-- /src/core/export/pdfExport.js
-- /src/core/validate/validate.js
-- /src/core/validate/constraints.js
-- /src/core/utils/dom.js
-- /src/core/utils/math.js
-- /src/core/utils/id.js
-- /src/patterns/panties_basic/module.js
-- /src/patterns/panties_basic/draft.js
-- /src/patterns/panties_basic/schema.js
-- /src/patterns/panties_basic/README.md
-- /src/ui/screens/Home.js
-- /src/ui/screens/Editor.js
-- /src/ui/components/Form.js
-- /src/ui/components/Preview.js
-- /src/ui/components/Toast.js
-- /src/ui/state/store.js
-- /src/ui/styles/theme.js
-- /tests/fixtures/*.json
-- /tests/geometry.test.js
-- /tests/module.test.js
-- /tests/export.test.js
-- /docs/TECH_SPEC.md
-- /docs/MODULE_API.md
-- /docs/USER_GUIDE.md
-- /sw.js
+## 1.2 — телефоны, планшеты и устойчивость редактирования
 
-## Phase 1.5 — Seam allowance smoothing + thong model
-- [x] Replace seam allowance offset with mitered polyline offsets + miter limit fallback.
-- [x] Add a preview toggle to highlight seam allowance styling.
-- [x] Add the **Panties Thong Basic** module with thong width option.
+- [x] отдельные адаптивные слои для компактного телефона, планшета/split-screen, широкого планшета/ноутбука и desktop;
+- [x] нижняя навигация «Мерки / Лекало / Итоги», safe-area, `dvh`, обе ориентации и горизонтальная сенсорная лента инструментов;
+- [x] сенсорные цели не меньше 44 CSS px и поля по 16 px без автоматического zoom на мобильных браузерах;
+- [x] история из 60 обратимых состояний мерок, опций и безопасных поправок;
+- [x] браузерная матрица от 320×568 до 1600×900, четыре модели на телефоне и планшете, RU/EN и offline-перезапуск;
+- [x] технические границы автономной Android-оболочки и актуальный чек-лист RuStore без преждевременного создания ключей или аккаунта.
 
-## Phase 1.6 — Multi-piece panties + export state
-- [x] Add multi-piece panties (front/back/gusset + optional lining) with grainlines, notches, and foldlines.
-- [x] Persist draft settings (measurements/options/paper/preview toggles) in local storage.
-- [x] Ensure paper size selection is honored by export handlers.
+## 1.3 — библиотека фасонов и безопасные заготовки
 
-## Phase 2 — Reliability + UX upgrades
+- [x] пять встроенных фасонов трусиков, стрингов и танга поверх двух параметрических основ;
+- [x] личные шаблоны фасона без мерок тела: локальное сохранение, скачивание, строгий импорт и повторное применение;
+- [x] точная привязка шаблона и проекта к версии модуля без молчаливой миграции;
+- [x] автор, источник, лицензия и отдельное подтверждение прав перед сохранением или импортом заготовки;
+- [x] безопасный локальный импорт ограниченного статического SVG без выполнения исходной разметки;
+- [x] личный статус «не проверено», явная неизвестность масштаба и сохранение подтверждённого физического масштаба в нормализованной SVG-копии;
+- [x] адаптивная библиотека и диалоги проверены на desktop, планшете и телефонах до 320 px без наложений и горизонтального переполнения.
 
-### A) Harden mobile download (SVG + PDF)
-- [ ] Create reusable `downloadBlob` helper with delayed revocation.
-- [ ] Add iOS Safari / WKWebView fallback (open in new tab or data URL).
-- [ ] Replace Editor download logic for SVG + PDF with helper.
-- [ ] Show inline message if popup is blocked.
+## Ворота физической валидации
 
-**Acceptance criteria**
-- Android Chrome saves `.pdf` from **Download PDF**.
-- Desktop Chrome/Edge saves `.pdf` and `.svg`.
-- iOS Safari reliably opens PDF (download if supported).
-- No more "revoke too fast" failures.
+До смены статуса «готово к пробному образцу» на «проверено посадкой» нужны:
 
-### B) Paper / export UX clarification
-- [ ] Rename paper options to **A4 tiled (print at home)** and **A3 tiled (fewer pages)**.
-- [ ] Add help text for printing at 100% and verifying 100mm square.
-- [ ] Add screen tracing tip referencing calibration.
-- [ ] Update `docs/USER_GUIDE.md` with the same wording.
+- [ ] реальная печать контрольных страниц на нескольких принтерах;
+- [ ] классика и стринги минимум в трёх диапазонах мерок и разных пропорциях;
+- [ ] минимум две группы растяжимости с хорошим восстановлением;
+- [ ] два–три цикла макет → примерка → поправка;
+- [ ] проверка технологом-конструктором белья;
+- [ ] журнал версии формулы и результатов примерок.
 
-**Acceptance criteria**
-- Export selector shows clarified labels.
-- Help text is visible under the paper selector.
-- User guide reflects the updated labels and tips.
+## Следующие расширения
 
-### C) Screen calibration mode
-- [ ] Add **Calibrate screen** button in preview toolbar.
-- [ ] Show 100mm calibration overlay with adjustable scale.
-- [ ] Persist scale multiplier to `localStorage` (`lingerie-screen-calibration`).
-- [ ] Apply multiplier only to preview rendering (exports unchanged).
-
-**Acceptance criteria**
-- Overlay matches a ruler after tuning.
-- Stored scale persists across reloads.
-- Fit/reset/zoom behavior still works.
-
-### D) Seam allowance options (explicit mm)
-- [ ] Replace seam allowance option with numeric mm values (0/6/8/10).
-- [ ] Convert mm → cm in drafting and store applied value in `meta`.
-- [ ] Ensure seam line is dashed and legend appears when enabled.
-- [ ] Add tests for seam dashed paths + legend text.
-- [ ] Add PDF ASCII-only test.
-
-**Acceptance criteria**
-- UI summary reads “Seam allowance: 6mm”.
-- Export shows cut (solid) + seam (dashed) lines when enabled.
-- PDF streams contain only ASCII.
-
-### E) Commercial PDF export polish
-- [ ] Add cut + glue/overlap trim system for tiled PDFs.
-- [ ] Add stronger registration marks (crosses + diamonds) at corners/edges.
-- [ ] Add per-tile header/footer with pattern title, tile ID, page count, and paper size.
-- [ ] Add an Assembly Map box that shows all tile IDs.
-- [ ] Add title blocks per piece in SVG + PDF (name, cut qty, material, module version, seam allowance).
-- [ ] Ensure annotations export notch/grainline/foldline/control points consistently and edge labels are supported.
-
-**Acceptance criteria**
-- Tiles show a thin cut line, a highlighted glue line labeled “GLUE LINE”, and a visible Assembly Map.
-- Each tile includes a header/footer with the required metadata and page numbering.
-- Title blocks never overlap geometry and include seam allowance text.
-- PDF output remains ASCII-only English.
-
-### Mobile QA checklist
-- [ ] Android Chrome: export PDF download saves file.
-- [ ] iOS Safari: export PDF opens reliably, fallback hint appears if blocked.
-- [ ] Desktop Chrome/Edge: SVG/PDF download works and preview zoom/labels unaffected.
+1. устойчивые идентификаторы конструктивных точек и сегментов, визуальные ручки кривых, числовая правка и ограничители формы с undo/redo;
+2. `walk/true` сопрягаемых швов, роли краёв, контроль углов, редактируемые надсечки и локальные припуски;
+3. [частично готово] пакетный индивидуальный/правиловый пересчёт и ZIP с отдельными DXF; наложенный просмотр и настоящая поточечная промышленная градация ещё требуют grade points и проверенных таблиц X/Y;
+4. [частично готово] строгий ASCII DXF с единицами, смысловыми слоями, XDATA, внутренним round-trip и независимой `ezdxf`-проверкой; DXF-импорт, AAMA/ASTM-профиль и подтверждение в CAD конкретного производства ещё впереди;
+5. встроенный первый учебный проект, короткие подсказки и глоссарий без необходимости изучать CAD;
+6. журнал «изменение → макет → результат», клонирование варианта и наложенное сравнение контуров;
+7. калиброванный фон/скан, ручная трассировка и только затем DXF-импорт — без обещания автоматической параметризации чужого файла;
+8. «Центр вывода»: домашняя печать, A0/плоттер и отдельный режим проектора с сеткой, контрастом, поворотом, зеркалированием и сохранением калибровки;
+9. бумажная и тканевая раскладка с оценкой числа листов, чернил и расхода материала;
+10. дополнительные варианты низа: шортики, бесшовная основа, мужские/унисекс модели;
+11. [экспериментально готово] физически проверить мягкий бралетт и топ, уточнить чашку/баланс на серии макетов и только после этого повысить их статус;
+12. каркасные бюстгальтеры — отдельный проект с типоразмерами каркасов, чашками и физической лабораторией посадки;
+13. Android/RuStore после стабилизации desktop/PWA и отдельной проверки APK/AAB на реальных устройствах;
+14. полноценная 3D-симуляция — только после калиброванных свойств материалов и проверенной 2D-геометрии.

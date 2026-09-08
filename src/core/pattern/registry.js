@@ -1,10 +1,14 @@
+import { PatternModule } from "./PatternModule.js";
+
 const modules = new Map();
 
 export function registerModule(module) {
-  if (!module?.id) {
-    throw new Error("Pattern module missing id");
+  const safeModule = module instanceof PatternModule ? module : new PatternModule(module);
+  if (modules.has(safeModule.id)) {
+    throw new Error(`Pattern module id is already registered: ${safeModule.id}`);
   }
-  modules.set(module.id, module);
+  modules.set(safeModule.id, safeModule);
+  return safeModule;
 }
 
 export function getModules() {

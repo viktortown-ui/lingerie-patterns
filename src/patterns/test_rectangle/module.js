@@ -9,6 +9,7 @@ const module = new PatternModule({
   version: "0.1.0",
   schema,
   draft: draftRectangle,
+  hidden: true,
 });
 
 export default module;

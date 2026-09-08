@@ -1,106 +1,242 @@
 import { createEl } from "../../core/utils/dom.js";
 import { validateSchema } from "../../core/validate/validate.js";
-import { resolveText, t } from "../i18n/i18n.js";
+import { getLocale, resolveText } from "../i18n/i18n.js";
 
-export function Form({ schema, values, onChange, onSubmit }) {
-  const form = createEl("form", { className: "form" });
-  const errorsEl = createEl("div", { className: "error" });
-  const inputs = new Map();
+const copy = (ru, en) => (getLocale() === "ru" ? ru : en);
 
-  const renderFields = () => {
-    schema.fields.forEach((field) => {
-      const group = createEl("div", { className: "form-group" });
-      const labelText = field.code
-        ? `${resolveText(field.label)} (${field.code})`
-        : resolveText(field.label);
-      const label = createEl("label", { text: labelText });
-      const input = createEl("input", {
-        attrs: {
-          type: "text",
-          inputmode: "decimal",
-          pattern: "[0-9.,]*",
-          min: field.min,
-          max: field.max,
-          step: field.step ?? 1,
-          value: values[field.key] ?? "",
-        },
-      });
-      const helper = createEl("div", {
-        className: "helper-text",
-        text: resolveText(field.description || ""),
-      });
-      const error = createEl("div", { className: "error" });
+function displayError(error) {
+  if (!error) return "";
+  return typeof error === "string" ? error : resolveText(error);
+}
 
-      input.addEventListener("input", (event) => {
-        const rawValue = String(event.target.value || "");
-        const normalized = rawValue.replace(",", ".");
-        values[field.key] = normalized === "" ? "" : Number(normalized);
-        const fieldErrors = validateSchema(schema, values);
-        error.textContent = fieldErrors[field.key]?.[0] || "";
-        onChange(values, fieldErrors);
-      });
+function measurementGuide(bodyRegion = "lower") {
+  const guide = createEl("div", { className: "measurement-guide" });
+  if (bodyRegion === "upper") {
+    guide.innerHTML = `
+    <div class="measurement-figure" aria-hidden="true">
+      <svg viewBox="0 0 220 290">
+        <path class="body-shape" d="M87 18c-12 8-16 23-13 39-18 14-31 33-35 59l26 18 10-20-7 146h84l-7-146 10 20 26-18c-4-26-17-45-35-59 3-16-1-31-13-39-13-9-33-9-46 0Z"/>
+        <path class="measure-line" d="M60 93c33 10 67 10 100 0M55 116c37 12 73 12 110 0M69 168c27 8 55 8 82 0"/>
+        <path class="measure-vertical" d="M110 38v130M151 41l17 54"/><path class="measure-arc" d="M83 68c17-9 37-9 54 0"/>
+        <text x="22" y="94">OG1</text><text x="22" y="118">OG</text><text x="32" y="171">OT</text><text x="116" y="153">DTP</text><text x="170" y="70">DP</text><text x="91" y="65">SHG</text>
+      </svg>
+    </div>
+    <div class="measurement-guide-copy"><strong>${copy("Горизонтали без перекоса", "Keep circumferences level")}</strong><span>${copy("Снимайте мерки поверх тонкого белья: обхваты держите параллельно полу, а длины ведите от одной точки основания шеи.", "Measure over light underwear: keep circumferences parallel to the floor and take lengths from the same neck-base point.")}</span></div>`;
+    return guide;
+  }
+  guide.innerHTML = `
+    <div class="measurement-figure" aria-hidden="true">
+      <svg viewBox="0 0 220 290">
+        <path class="body-shape" d="M91 20c-13 8-17 22-14 40-6 13-10 27-10 42-1 20 7 29 6 46-2 24-15 44-17 72-2 25 10 43 24 50h60c14-7 26-25 24-50-2-28-15-48-17-72-1-17 7-26 6-46 0-15-4-29-10-42 3-18-1-32-14-40-11-7-27-7-38 0Z"/>
+        <path class="measure-line" d="M69 92c27 7 55 7 82 0"/><path class="measure-line" d="M66 120c29 8 59 8 88 0"/><path class="measure-line" d="M61 151c33 10 65 10 98 0"/>
+        <path class="measure-vertical" d="M159 92v59"/><path class="measure-arc" d="M110 92c-4 42-5 83 0 128 5-45 4-86 0-128Z"/>
+        <text x="28" y="91">OT</text><text x="24" y="120">OB1</text><text x="24" y="154">OB</text><text x="166" y="117">VT1</text><text x="166" y="148">VT</text><text x="116" y="212">DS</text>
+      </svg>
+    </div>
+    <div class="measurement-guide-copy"><strong>${copy("Одна линия талии", "One fixed waistline")}</strong><span>${copy("Завяжите тонкую ленту на талии и не сдвигайте её, пока снимаете вертикали и дуги сидения.", "Tie a narrow tape at the waist and keep it in place while taking verticals and crotch arcs.")}</span></div>`;
+  return guide;
+}
 
-      inputs.set(field.key, input);
-      group.append(label, input, helper, error);
-      form.appendChild(group);
+function stretchCalculator(values, controls, emitChange) {
+  const box = createEl("div", { className: "stretch-calculator" });
+  const heading = createEl("div", { className: "calculator-heading" });
+  heading.append(createEl("strong", { text: copy("Калькулятор растяжимости", "Stretch calculator") }), createEl("span", { text: copy("Проверьте образец поперёк долевой", "Test a swatch across the grain") }));
+  const fields = createEl("div", { className: "calculator-fields" });
+  const original = createEl("label");
+  const stretched = createEl("label");
+  const originalInput = createEl("input", { attrs: { type: "number", min: "5", max: "30", step: "0.5", value: "10" } });
+  const stretchedInput = createEl("input", { attrs: { type: "number", min: "5", max: "60", step: "0.5", value: "18" } });
+  original.append(createEl("span", { text: copy("Было, см", "Original, cm") }), originalInput);
+  stretched.append(createEl("span", { text: copy("Стало, см", "Stretched, cm") }), stretchedInput);
+  const result = createEl("div", { className: "calculator-result" });
+  const resultValue = createEl("strong", { text: "80%" });
+  const resultHint = createEl("span");
+  const apply = createEl("button", { className: "secondary-button compact-button", text: copy("Применить безопасное значение", "Use a conservative value"), attrs: { type: "button" } });
+  result.append(resultValue, resultHint, apply);
+  fields.append(original, stretched, result);
+  let suggested = 25;
+  const update = () => {
+    const start = Number(originalInput.value);
+    const end = Number(stretchedInput.value);
+    const maximum = start > 0 && end >= start ? ((end - start) / start) * 100 : 0;
+    suggested = Math.max(10, Math.min(40, Math.round((maximum * 0.36) / 5) * 5));
+    resultValue.textContent = `${Math.round(maximum)}%`;
+    resultHint.textContent = copy(`Рабочее значение для старта: около ${suggested}%`, `Conservative starting point: about ${suggested}%`);
+    apply.disabled = maximum <= 0;
+  };
+  originalInput.addEventListener("input", update);
+  stretchedInput.addEventListener("input", update);
+  apply.addEventListener("click", () => {
+    const control = controls.get("workingStretchX");
+    if (!control) return;
+    const nearest = control.option.choices.reduce((best, choice) => Math.abs(Number(choice.value) - suggested) < Math.abs(Number(best.value) - suggested) ? choice : best);
+    values.workingStretchX = nearest.value;
+    control.setValue(nearest.value);
+    emitChange();
+  });
+  update();
+  box.append(heading, fields);
+  return box;
+}
+
+export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
+  const form = createEl("form", { className: "wizard-form" });
+  const sections = schema.sections?.length ? schema.sections : [{ id: "measurements", title: { ru: "Параметры", en: "Parameters" }, description: "" }];
+  const controls = new Map();
+  const panels = [];
+  const stepButtons = [];
+  let activeStep = 0;
+  let currentErrors = validateSchema(schema, values);
+  const stepper = createEl("nav", { className: "wizard-stepper", attrs: { "aria-label": copy("Шаги построения", "Drafting steps") } });
+
+  const setActiveStep = (nextIndex, { moveFocus = false } = {}) => {
+    activeStep = Math.max(0, Math.min(sections.length - 1, nextIndex));
+    panels.forEach((panel, index) => { panel.hidden = index !== activeStep; });
+    stepButtons.forEach((button, index) => {
+      button.classList.toggle("is-active", index === activeStep);
+      button.classList.toggle("is-complete", index < activeStep);
+      button.setAttribute("aria-current", index === activeStep ? "step" : "false");
     });
-
-    if (schema.options?.length) {
-      const optionTitle = createEl("h4", { text: t("form.options") });
-      form.appendChild(optionTitle);
-
-      schema.options.forEach((option) => {
-        const group = createEl("div", { className: "form-group" });
-        const label = createEl("label", { text: resolveText(option.label) });
-        const select = createEl("select", {
-          attrs: { value: values[option.key] ?? option.default },
-        });
-        option.choices.forEach((choice) => {
-          const opt = createEl("option", {
-            text: resolveText(choice.label),
-            attrs: { value: choice.value },
-          });
-          if (values[option.key] === choice.value) {
-            opt.selected = true;
-          }
-          select.appendChild(opt);
-        });
-        const helper = createEl("div", {
-          className: "helper-text",
-          text: resolveText(option.description || ""),
-        });
-
-        select.addEventListener("change", (event) => {
-          const rawValue = event.target.value;
-          const selected = option.choices.find((choice) => String(choice.value) === rawValue);
-          values[option.key] = selected ? selected.value : rawValue;
-          onChange(values, validateSchema(schema, values));
-        });
-
-        inputs.set(option.key, select);
-        group.append(label, select, helper);
-        form.appendChild(group);
+    onStepChange?.(sections[activeStep], activeStep);
+    if (moveFocus) {
+      requestAnimationFrame(() => {
+        const activePanel = panels[activeStep];
+        activePanel?.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+        activePanel?.focus({ preventScroll: true });
       });
     }
   };
 
-  renderFields();
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const errors = validateSchema(schema, values);
-    errorsEl.textContent = Object.values(errors).flat().join(" ");
-    if (Object.keys(errors).length) return;
-    onSubmit(values);
-  });
-
-  form.appendChild(errorsEl);
-  const setValues = (nextValues) => {
-    Object.entries(nextValues).forEach(([key, value]) => {
-      const input = inputs.get(key);
-      if (input) input.value = value ?? "";
+  sections.forEach((section, index) => {
+    const stepNumber = section.step || index + 1;
+    const button = createEl("button", {
+      className: "wizard-step",
+      attrs: {
+        type: "button",
+        "aria-label": `${copy("Шаг", "Step")} ${stepNumber}: ${resolveText(section.title)}`,
+      },
     });
+    button.append(createEl("span", { className: "wizard-step-number", text: String(stepNumber).padStart(2, "0") }), createEl("span", { className: "wizard-step-label", text: resolveText(section.title) }));
+    button.addEventListener("click", () => setActiveStep(index, { moveFocus: true }));
+    stepButtons.push(button);
+    stepper.appendChild(button);
+  });
+  form.appendChild(stepper);
+
+  const emitChange = () => {
+    currentErrors = validateSchema(schema, values);
+    controls.forEach((control, key) => {
+      if (!control.error) return;
+      control.error.textContent = displayError(currentErrors[key]?.[0]);
+      control.wrapper?.classList.toggle("has-error", Boolean(currentErrors[key]?.length));
+      control.input?.setAttribute("aria-invalid", currentErrors[key]?.length ? "true" : "false");
+    });
+    onChange(values, currentErrors);
   };
 
-  return { el: form, setValues };
+  sections.forEach((section, sectionIndex) => {
+    const panelHeadingId = `${schema.id}-${section.id || sectionIndex}-heading`.replace(/[^a-zA-Z0-9_-]/g, "-");
+    const panel = createEl("section", {
+      className: "wizard-panel",
+      attrs: { tabindex: "-1", "aria-labelledby": panelHeadingId },
+    });
+    const panelHeading = createEl("div", { className: "wizard-panel-heading" });
+    panelHeading.append(createEl("div", { className: "eyebrow", text: `${copy("ШАГ", "STEP")} ${section.step || sectionIndex + 1}` }), createEl("h3", { text: resolveText(section.title), attrs: { id: panelHeadingId } }), createEl("p", { text: resolveText(section.description || "") }));
+    panel.appendChild(panelHeading);
+    if (section.id === "measurements") panel.appendChild(measurementGuide(schema.bodyRegion));
+
+    const fields = schema.fields.filter((field) => (field.section || "measurements") === section.id);
+    if (fields.length) {
+      const fieldGrid = createEl("div", { className: "measurement-grid" });
+      fields.forEach((field) => {
+        const wrapper = createEl("div", { className: "field-card" });
+        const top = createEl("div", { className: "field-card-top" });
+        const fieldId = `${schema.id}-${field.key}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+        const helperId = `${fieldId}-helper`;
+        const errorId = `${fieldId}-error`;
+        const fieldLabel = createEl("label", { className: "field-label", attrs: { for: fieldId } });
+        fieldLabel.appendChild(createEl("span", { className: "field-label-text", text: resolveText(field.label) }));
+        if (field.code) fieldLabel.appendChild(createEl("span", { className: "field-code", text: field.code }));
+        const valueWrap = createEl("div", { className: "number-input-wrap" });
+        const input = createEl("input", { attrs: { id: fieldId, type: "number", inputmode: "decimal", min: field.min, max: field.max, step: field.step ?? 0.5, value: values[field.key] ?? "", "aria-label": resolveText(field.label), "aria-describedby": `${helperId} ${errorId}` } });
+        valueWrap.append(input, createEl("span", { text: schema.unit === "cm" ? "см" : schema.unit, attrs: { "aria-hidden": "true" } }));
+        top.append(fieldLabel, valueWrap);
+        const helper = createEl("div", { className: "field-helper", text: resolveText(field.description || ""), attrs: { id: helperId } });
+        const error = createEl("div", { className: "field-error", attrs: { id: errorId, role: "alert", "aria-live": "polite" } });
+        input.addEventListener("input", () => {
+          const normalized = String(input.value).replace(",", ".");
+          values[field.key] = normalized === "" ? "" : Number(normalized);
+          emitChange();
+        });
+        controls.set(field.key, { wrapper, input, error, setValue(value) { input.value = value ?? ""; } });
+        wrapper.append(top, helper, error);
+        fieldGrid.appendChild(wrapper);
+      });
+      panel.appendChild(fieldGrid);
+    }
+
+    const options = (schema.options || []).filter((option) => (option.section || "style") === section.id);
+    if (section.id === "fabric") panel.appendChild(stretchCalculator(values, controls, emitChange));
+    if (options.length) {
+      const optionList = createEl("div", { className: "option-list" });
+      options.forEach((option) => {
+        const wrapper = createEl("fieldset", { className: "option-card" });
+        const error = createEl("div", { className: "field-error option-error", attrs: { role: "alert" } });
+        const helperText = resolveText(option.description || "");
+        wrapper.appendChild(createEl("legend", { text: resolveText(option.label) }));
+        if (helperText) wrapper.appendChild(createEl("p", { className: "field-helper", text: helperText }));
+        const choices = createEl("div", { className: option.display === "cards" ? "choice-grid choice-grid--cards" : "choice-grid" });
+        const radios = [];
+        option.choices.forEach((choice) => {
+          const label = createEl("label", { className: "choice-control" });
+          const input = createEl("input", { attrs: { type: "radio", name: `${schema.id}-${option.key}`, value: String(choice.value) } });
+          input.checked = String(values[option.key] ?? option.default) === String(choice.value);
+          input.addEventListener("change", () => { if (input.checked) { values[option.key] = choice.value; emitChange(); } });
+          label.append(input, createEl("span", { className: "choice-face", text: resolveText(choice.label) }));
+          choices.appendChild(label);
+          radios.push({ input, value: choice.value });
+        });
+        controls.set(option.key, { wrapper, option, error, setValue(value) { radios.forEach((radio) => { radio.input.checked = String(radio.value) === String(value); }); } });
+        wrapper.append(choices, error);
+        optionList.appendChild(wrapper);
+      });
+      panel.appendChild(optionList);
+    }
+
+    const navigation = createEl("div", { className: "wizard-navigation" });
+    const back = createEl("button", { className: "secondary-button", text: copy("Назад", "Back"), attrs: { type: "button" } });
+    back.disabled = sectionIndex === 0;
+    back.addEventListener("click", () => setActiveStep(sectionIndex - 1, { moveFocus: true }));
+    const next = createEl("button", { className: "primary-button", text: sectionIndex === sections.length - 1 ? copy("Показать результат", "Show result") : copy("Продолжить", "Continue"), attrs: { type: "button" } });
+    next.addEventListener("click", () => {
+      const relevantKeys = [
+        ...schema.fields.filter((field) => (field.section || "measurements") === section.id),
+        ...(schema.options || []).filter((option) => (option.section || "style") === section.id),
+      ].map((item) => item.key);
+      const firstInvalidKey = relevantKeys.find((key) => currentErrors[key]?.length);
+      if (firstInvalidKey) {
+        const control = controls.get(firstInvalidKey);
+        (control?.input || control?.wrapper?.querySelector("input"))?.focus();
+        control?.wrapper?.classList.add("attention");
+        return;
+      }
+      if (sectionIndex === sections.length - 1) onSubmit?.(values); else setActiveStep(sectionIndex + 1, { moveFocus: true });
+    });
+    navigation.append(back, createEl("span", { className: "autosave-note", text: copy("Сохраняется автоматически", "Saved automatically") }), next);
+    panel.appendChild(navigation);
+    panel.hidden = sectionIndex !== 0;
+    panels.push(panel);
+    form.appendChild(panel);
+  });
+
+  const setValues = (nextValues) => { Object.assign(values, nextValues); controls.forEach((control, key) => control.setValue?.(values[key])); emitChange(); };
+  form.addEventListener("submit", (event) => { event.preventDefault(); onSubmit?.(values); });
+  setActiveStep(0);
+  emitChange();
+  return {
+    el: form,
+    setValues,
+    setStep: (nextIndex) => setActiveStep(nextIndex, { moveFocus: true }),
+    getActiveStep: () => activeStep,
+  };
 }

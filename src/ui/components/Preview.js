@@ -4,7 +4,16 @@ import { Units } from "../../core/geometry/Units.js";
 import { collectPaths, hasSeamPaths } from "../../core/pattern/panels.js";
 import { resolveText, t } from "../i18n/i18n.js";
 
-export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange }) {
+const CONTROL_HANDLE_EDGE_INSET = 4;
+const CONTROL_HANDLE_GAP = 6;
+
+export function Preview({
+  getDraft,
+  getSummary,
+  settings = {},
+  onSettingsChange,
+  onAdjustmentChange,
+}) {
   const wrapper = createEl("div", { className: "preview" });
   const storageKey = "lingerie-preview-scale-labels";
   const seamHighlightStorageKey = "lingerie-preview-seam-highlight";
@@ -19,12 +28,12 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
   const zoomOutButton = createEl("button", {
     className: "secondary",
     text: "−",
-    attrs: { type: "button", title: t("preview.zoomOut") },
+    attrs: { type: "button", title: t("preview.zoomOut"), "aria-label": t("preview.zoomOut") },
   });
   const zoomInButton = createEl("button", {
     className: "secondary",
     text: "+",
-    attrs: { type: "button", title: t("preview.zoomIn") },
+    attrs: { type: "button", title: t("preview.zoomIn"), "aria-label": t("preview.zoomIn") },
   });
   const resetButton = createEl("button", {
     className: "secondary",
@@ -43,22 +52,37 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
     text: t("preview.calibrateScreen"),
     attrs: { type: "button" },
   });
+  const editPointsButton = createEl("button", {
+    className: "secondary",
+    text: t("preview.editPoints"),
+    attrs: { type: "button", "aria-pressed": "false" },
+  });
+  const fullscreenButton = createEl("button", {
+    className: "secondary preview-fullscreen-button",
+    text: t("preview.fullscreen"),
+    attrs: { type: "button" },
+  });
   const calibrationControls = createEl("div", { className: "preview-calibration-controls" });
-  const calibrationLabel = createEl("span", { text: t("preview.screenScale") });
+  const calibrationSliderId = "preview-screen-calibration";
+  const calibrationLabel = createEl("label", {
+    text: t("preview.screenScale"),
+    attrs: { for: calibrationSliderId },
+  });
   const calibrationValue = createEl("span", { className: "preview-calibration-value", text: "100%" });
   const calibrationDown = createEl("button", {
     className: "secondary",
     text: "−",
-    attrs: { type: "button", title: t("preview.decreaseScale") },
+    attrs: { type: "button", title: t("preview.decreaseScale"), "aria-label": t("preview.decreaseScale") },
   });
   const calibrationUp = createEl("button", {
     className: "secondary",
     text: "+",
-    attrs: { type: "button", title: t("preview.increaseScale") },
+    attrs: { type: "button", title: t("preview.increaseScale"), "aria-label": t("preview.increaseScale") },
   });
   const calibrationSlider = createEl("input", {
     attrs: {
       type: "range",
+      id: calibrationSliderId,
       min: "0.7",
       max: "1.3",
       step: "0.01",
@@ -92,8 +116,17 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
   seamHighlightCheckbox.checked = initialSeamHighlight;
   seamHighlightToggle.append(seamHighlightCheckbox, seamHighlightText);
 
-  const viewport = createEl("div", { className: "preview-viewport" });
+  const viewport = createEl("div", {
+    className: "preview-viewport",
+    attrs: {
+      tabindex: "0",
+      role: "region",
+      "aria-label": t("preview.canvas"),
+      "aria-keyshortcuts": "ArrowUp ArrowDown ArrowLeft ArrowRight PageUp PageDown",
+    },
+  });
   const labelLayer = createEl("div", { className: "preview-label-layer" });
+  const controlLayer = createEl("div", { className: "preview-control-layer" });
   const calibrationOverlay = createEl("div", { className: "preview-calibration-overlay" });
   const calibrationLine = createEl("div", { className: "preview-calibration-line" });
   const calibrationLineLabel = createEl("div", {
@@ -130,7 +163,9 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
     zoomLabel,
     labelToggle,
     seamHighlightToggle,
-    calibrateButton
+    calibrateButton,
+    editPointsButton,
+    fullscreenButton
   );
   infoPanel.append(infoTitle, infoScale, infoSummary, infoLegend);
   wrapper.append(toolbar, calibrationControls, viewport, infoPanel);
@@ -146,10 +181,13 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
   let zoomFactor = 1;
   let fitMode = true;
   const minZoom = 0.25;
+  const minFitZoom = 0.04;
   const maxZoom = 3;
   let scaleLabels = initialScaleLabels;
   let highlightSeamAllowance = initialSeamHighlight;
+  let editPoints = Boolean(settings.editPoints);
   let labelEntries = [];
+  let controlEntries = [];
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const clampCalibration = (value) => clamp(value, 0.7, 1.3);
@@ -179,7 +217,9 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
   };
 
   const updateCalibrationLabel = () => {
-    calibrationValue.textContent = `${Math.round(calibrationMultiplier * 100)}%`;
+    const percent = `${Math.round(calibrationMultiplier * 100)}%`;
+    calibrationValue.textContent = percent;
+    calibrationSlider.setAttribute("aria-valuetext", percent);
   };
 
   const updateCalibrationOverlay = () => {
@@ -207,8 +247,8 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
 
   const getFitScale = () => {
     if (!viewBoxSize) return 1;
-    const w = viewport.clientWidth || 1;
-    const h = viewport.clientHeight || 1;
+    const w = Math.max(1, (viewport.clientWidth || 1) - 4);
+    const h = Math.max(1, (viewport.clientHeight || 1) - 4);
     return Math.min(w / (viewBoxSize.width * pxPerUnit), h / (viewBoxSize.height * pxPerUnit));
   };
 
@@ -223,8 +263,10 @@ export function Preview({ getDraft, getSummary, settings = {}, onSettingsChange 
     const hPx = Math.max(1, Math.round(viewBoxSize.height * pxPerUnit * scale));
     svgEl.style.width = `${wPx}px`;
     svgEl.style.height = `${hPx}px`;
-updateZoomLabel();
+    updateZoomLabel();
+    updateCanvasPanMode();
     positionLabels();
+    positionControlHandles();
   };
 
   const updatePreviewScale = () => {
@@ -249,7 +291,7 @@ updateZoomLabel();
 
   const applyFit = () => {
     fitMode = true;
-    zoomFactor = clamp(getFitScale(), minZoom, maxZoom);
+    zoomFactor = clamp(getFitScale(), minFitZoom, maxZoom);
     applyZoom();
   };
 
@@ -263,7 +305,11 @@ updateZoomLabel();
   zoomOutButton.addEventListener("click", () => setZoomFactor(zoomFactor / 1.15));
   zoomInButton.addEventListener("click", () => setZoomFactor(zoomFactor * 1.15));
   const notifySettings = () => {
-    onSettingsChange?.({ scaleLabels, seamHighlight: highlightSeamAllowance });
+    onSettingsChange?.({
+      scaleLabels,
+      seamHighlight: highlightSeamAllowance,
+      editPoints,
+    });
   };
   labelCheckbox.addEventListener("change", () => {
     scaleLabels = labelCheckbox.checked;
@@ -285,6 +331,40 @@ updateZoomLabel();
     render();
     notifySettings();
   });
+  const updateEditPointsButton = () => {
+    editPointsButton.classList.toggle("is-active", editPoints);
+    editPointsButton.setAttribute("aria-pressed", editPoints ? "true" : "false");
+  };
+  editPointsButton.addEventListener("click", () => {
+    editPoints = !editPoints;
+    updateEditPointsButton();
+    renderControlHandles(getDraft());
+    notifySettings();
+  });
+  updateEditPointsButton();
+
+  const updateFullscreenButton = () => {
+    const active = document.fullscreenElement === wrapper;
+    fullscreenButton.textContent = active ? t("preview.exitFullscreen") : t("preview.fullscreen");
+    fullscreenButton.classList.toggle("is-active", active);
+  };
+  fullscreenButton.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement === wrapper) {
+        await document.exitFullscreen();
+      } else if (wrapper.requestFullscreen) {
+        await wrapper.requestFullscreen();
+      }
+    } catch {
+      // Fullscreen can be denied by browser policy. The normal preview remains usable.
+    }
+  });
+  const handleFullscreenChange = () => {
+    updateFullscreenButton();
+    requestAnimationFrame(() => fitMode ? applyFit() : applyZoom());
+  };
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  updateFullscreenButton();
   notifySettings();
 
   calibrationMultiplier = loadCalibration();
@@ -330,6 +410,23 @@ updateZoomLabel();
     { passive: false }
   );
 
+  viewport.addEventListener("keydown", (event) => {
+    if (!canvasOverflows()) return;
+    const arrowStep = event.shiftKey ? 90 : 44;
+    const pageStep = Math.max(120, Math.round(viewport.clientHeight * 0.82));
+    const movement = {
+      ArrowLeft: [-arrowStep, 0],
+      ArrowRight: [arrowStep, 0],
+      ArrowUp: [0, -arrowStep],
+      ArrowDown: [0, arrowStep],
+      PageUp: [0, -pageStep],
+      PageDown: [0, pageStep],
+    }[event.key];
+    if (!movement) return;
+    event.preventDefault();
+    viewport.scrollBy({ left: movement[0], top: movement[1], behavior: "auto" });
+  });
+
   // Drag-to-pan (mouse + touch via Pointer Events)
   let dragging = false;
   let startX = 0;
@@ -341,8 +438,18 @@ updateZoomLabel();
 
   viewport.style.cursor = "grab";
 
+  const canvasOverflows = () => viewport.scrollWidth > viewport.clientWidth + 1
+    || viewport.scrollHeight > viewport.clientHeight + 1;
+
+  function updateCanvasPanMode() {
+    const pannable = canvasOverflows();
+    viewport.classList.toggle("is-canvas-pannable", pannable);
+    viewport.style.cursor = pannable ? "grab" : "default";
+  }
+
   viewport.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 && e.pointerType !== "touch") return;
+    if (!canvasOverflows()) return;
     dragging = true;
     viewport.setPointerCapture(e.pointerId);
     startX = e.clientX;
@@ -363,7 +470,7 @@ updateZoomLabel();
 
   const endDrag = () => {
     dragging = false;
-    viewport.style.cursor = "grab";
+    viewport.style.cursor = canvasOverflows() ? "grab" : "default";
   };
 
   viewport.addEventListener("pointerup", endDrag);
@@ -421,6 +528,7 @@ updateZoomLabel();
         applyZoom();
       }
       positionLabels();
+      positionControlHandles();
       updateCalibrationOverlay();
     });
   });
@@ -428,6 +536,7 @@ updateZoomLabel();
 
   viewport.addEventListener("scroll", () => {
     positionLabels();
+    positionControlHandles();
   });
 
   const positionLabels = () => {
@@ -440,11 +549,189 @@ updateZoomLabel();
     const viewportRect = viewport.getBoundingClientRect();
     labelEntries.forEach(({ annotation, el }) => {
       const point = new DOMPoint(annotation.point.x, annotation.point.y).matrixTransform(ctm);
-      const left = point.x - viewportRect.left;
-      const top = point.y - viewportRect.top;
+      const left = point.x - viewportRect.left + viewport.scrollLeft;
+      const top = point.y - viewportRect.top + viewport.scrollTop;
       el.style.transform = `translate(${left}px, ${top}px) translate(-50%, -50%)`;
     });
     labelLayer.hidden = false;
+  };
+
+  const positionControlHandles = () => {
+    if (!svgEl || !editPoints || !controlEntries.length) {
+      controlLayer.hidden = true;
+      return;
+    }
+    const ctm = svgEl.getScreenCTM();
+    if (!ctm) return;
+    const viewportRect = viewport.getBoundingClientRect();
+    const placements = controlEntries.map(({ definition, el, dragPoint }) => {
+      const source = dragPoint || definition.point;
+      const point = new DOMPoint(source.x, source.y).matrixTransform(ctm);
+      return {
+        el,
+        idealX: point.x - viewportRect.left + viewport.scrollLeft,
+        idealY: point.y - viewportRect.top + viewport.scrollTop,
+        width: Math.max(1, el.offsetWidth),
+        height: Math.max(1, el.offsetHeight),
+      };
+    });
+
+    // Fit mode keeps the whole draft visible, so its edge points can land under
+    // half of a touch target. Keep handles inside the visible viewport and move
+    // only labels that would collide. During manual zoom/pan their true canvas
+    // positions are retained so handles scroll naturally with the geometry.
+    if (fitMode) {
+      const leftEdge = viewport.scrollLeft;
+      const topEdge = viewport.scrollTop;
+      const rightEdge = leftEdge + viewport.clientWidth;
+      const bottomEdge = topEdge + viewport.clientHeight;
+      const placed = [];
+      const clampPlacement = (placement, x, y) => {
+        const minX = leftEdge + placement.width / 2 + CONTROL_HANDLE_EDGE_INSET;
+        const maxX = rightEdge - placement.width / 2 - CONTROL_HANDLE_EDGE_INSET;
+        const minY = topEdge + placement.height / 2 + CONTROL_HANDLE_EDGE_INSET;
+        const maxY = bottomEdge - placement.height / 2 - CONTROL_HANDLE_EDGE_INSET;
+        return {
+          x: maxX >= minX ? clamp(x, minX, maxX) : (leftEdge + rightEdge) / 2,
+          y: maxY >= minY ? clamp(y, minY, maxY) : (topEdge + bottomEdge) / 2,
+        };
+      };
+      const overlap = (candidate, placement, other) => {
+        const overlapX = Math.max(0,
+          (placement.width + other.width) / 2 + CONTROL_HANDLE_GAP
+            - Math.abs(candidate.x - other.x));
+        const overlapY = Math.max(0,
+          (placement.height + other.height) / 2 + CONTROL_HANDLE_GAP
+            - Math.abs(candidate.y - other.y));
+        return overlapX * overlapY;
+      };
+
+      placements.forEach((placement) => {
+        const anchor = clampPlacement(placement, placement.idealX, placement.idealY);
+        const candidates = [anchor];
+        placed.forEach((other) => {
+          const horizontalDistance = (placement.width + other.width) / 2 + CONTROL_HANDLE_GAP;
+          const verticalDistance = (placement.height + other.height) / 2 + CONTROL_HANDLE_GAP;
+          candidates.push(
+            clampPlacement(placement, other.x - horizontalDistance, anchor.y),
+            clampPlacement(placement, other.x + horizontalDistance, anchor.y),
+            clampPlacement(placement, anchor.x, other.y - verticalDistance),
+            clampPlacement(placement, anchor.x, other.y + verticalDistance),
+          );
+        });
+        const ranked = candidates.map((candidate) => {
+          const overlapAreas = placed.map((other) => overlap(candidate, placement, other));
+          return {
+            ...candidate,
+            collisions: overlapAreas.filter((area) => area > 0).length,
+            overlapArea: overlapAreas.reduce((sum, area) => sum + area, 0),
+            distance: (candidate.x - anchor.x) ** 2 + (candidate.y - anchor.y) ** 2,
+          };
+        }).sort((left, right) => left.collisions - right.collisions
+          || left.overlapArea - right.overlapArea
+          || left.distance - right.distance);
+        Object.assign(placement, ranked[0]);
+        placed.push(placement);
+      });
+    } else {
+      placements.forEach((placement) => {
+        placement.x = placement.idealX;
+        placement.y = placement.idealY;
+      });
+    }
+
+    placements.forEach(({ el, x, y }) => {
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+    });
+    controlLayer.hidden = false;
+  };
+
+  const renderControlHandles = (draft) => {
+    controlLayer.innerHTML = "";
+    controlEntries = [];
+    const definitions = Array.isArray(draft?.meta?.editablePoints)
+      ? draft.meta.editablePoints.filter((item) => item?.point && item?.key)
+      : [];
+    editPointsButton.disabled = definitions.length === 0;
+    if (!definitions.length || !editPoints) {
+      controlLayer.hidden = true;
+      return;
+    }
+
+    definitions.forEach((definition) => {
+      const label = resolveText(definition.label) || definition.key;
+      const handle = createEl("button", {
+        className: "pattern-control-handle",
+        attrs: {
+          type: "button",
+          title: `${definition.code || definition.key}: ${label}`,
+          "aria-label": `${definition.code || definition.key}: ${label}`,
+        },
+      });
+      const code = createEl("span", {
+        className: "pattern-control-code",
+        text: definition.code || definition.key,
+      });
+      const value = createEl("span", {
+        className: "pattern-control-value",
+        text: `${Number(definition.value || 0).toFixed(1)} ${definition.unit || ""}`.trim(),
+      });
+      handle.append(code, value);
+      const entry = { definition, el: handle, valueEl: value, dragPoint: null };
+
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 && event.pointerType !== "touch") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const ctm = svgEl?.getScreenCTM();
+        if (!ctm) return;
+        const inverse = ctm.inverse();
+        const start = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse);
+        const startValue = Number(definition.value) || 0;
+        let nextValue = startValue;
+        handle.classList.add("is-dragging");
+        handle.setPointerCapture?.(event.pointerId);
+
+        const move = (moveEvent) => {
+          if (moveEvent.pointerId !== event.pointerId) return;
+          moveEvent.preventDefault();
+          const current = new DOMPoint(moveEvent.clientX, moveEvent.clientY).matrixTransform(inverse);
+          const delta = definition.axis === "x" ? current.x - start.x : current.y - start.y;
+          const response = Number(definition.response) || 1;
+          const direction = Number(definition.direction) || 1;
+          const raw = startValue + (delta / response) * direction;
+          const min = Number.isFinite(definition.min) ? definition.min : raw;
+          const max = Number.isFinite(definition.max) ? definition.max : raw;
+          const step = Number(definition.step) || 0.1;
+          nextValue = Math.min(max, Math.max(min, Math.round(raw / step) * step));
+          const appliedDelta = ((nextValue - startValue) * response) / direction;
+          entry.dragPoint = {
+            x: definition.point.x + (definition.axis === "x" ? appliedDelta : 0),
+            y: definition.point.y + (definition.axis === "y" ? appliedDelta : 0),
+          };
+          value.textContent = `${nextValue.toFixed(1)} ${definition.unit || ""}`.trim();
+          positionControlHandles();
+        };
+        const end = (endEvent) => {
+          if (endEvent.pointerId !== event.pointerId) return;
+          handle.classList.remove("is-dragging");
+          handle.releasePointerCapture?.(event.pointerId);
+          handle.removeEventListener("pointermove", move);
+          handle.removeEventListener("pointerup", end);
+          handle.removeEventListener("pointercancel", end);
+          entry.dragPoint = null;
+          if (nextValue !== startValue) onAdjustmentChange?.(definition.key, nextValue);
+          else positionControlHandles();
+        };
+        handle.addEventListener("pointermove", move);
+        handle.addEventListener("pointerup", end);
+        handle.addEventListener("pointercancel", end);
+      });
+
+      controlEntries.push(entry);
+      controlLayer.appendChild(handle);
+    });
+    positionControlHandles();
   };
 
   const renderOverlayLabels = (draft) => {
@@ -468,7 +755,9 @@ updateZoomLabel();
       infoPanel.hidden = true;
       labelCheckbox.disabled = true;
       seamHighlightCheckbox.disabled = true;
+      editPointsButton.disabled = true;
       labelLayer.hidden = true;
+      controlLayer.hidden = true;
       calibrationOverlay.hidden = true;
       return;
     }
@@ -509,10 +798,27 @@ updateZoomLabel();
 
     viewport.appendChild(nextSvg);
     viewport.appendChild(labelLayer);
+    viewport.appendChild(controlLayer);
     viewport.appendChild(calibrationOverlay);
     svgEl = nextSvg;
-    svgEl.querySelectorAll("path,line,polyline,polygon").forEach((el) => {
+    // Export strokes are expressed in physical pattern units. At a typical
+    // fit-to-window zoom those values become fractions of a screen pixel, so
+    // keep the saved SVG/PDF precise and strengthen only this DOM preview.
+    svgEl.querySelectorAll("path,line,polyline,polygon,circle").forEach((el) => {
       el.setAttribute("vector-effect", "non-scaling-stroke");
+
+      const role = el.getAttribute("data-role");
+      if (role === "cut") {
+        el.setAttribute("stroke", "#211a1c");
+        el.setAttribute("stroke-width", "1.8");
+      } else if (role === "seam") {
+        el.setAttribute("stroke", "#6d253d");
+        el.setAttribute("stroke-width", "1.35");
+      } else if (el.hasAttribute("data-highlight-for")) {
+        el.setAttribute("stroke-width", "4.5");
+      } else if (el.getAttribute("stroke") && el.getAttribute("stroke") !== "none") {
+        el.setAttribute("stroke-width", "1.1");
+      }
     });
 
     updatePreviewScale();
@@ -536,11 +842,20 @@ updateZoomLabel();
     infoPanel.hidden = false;
 
     renderOverlayLabels(draft);
+    renderControlHandles(draft);
 
     positionLabels();
+    positionControlHandles();
   };
 
   render();
 
-  return { el: wrapper, render };
+  const destroy = () => {
+    document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    resizeObserver.disconnect();
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = 0;
+  };
+
+  return { el: wrapper, render, destroy };
 }
