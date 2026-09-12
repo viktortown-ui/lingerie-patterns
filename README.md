@@ -120,7 +120,7 @@ DXF содержит отдельные слои `CUT`, `SEAM`, `NOTCH`, `GRAIN`
 
 Основные инженерные решения, формула растяжимости, границы проверенного и список изученных мировых инструментов описаны в [`docs/METHOD_AND_REFERENCES.md`](docs/METHOD_AND_REFERENCES.md). Архитектура — в [`docs/TECH_SPEC.md`](docs/TECH_SPEC.md).
 
-Полный геометрический и экспортный протокол релиза 1.3 сохранён в [`docs/AUDIT_2026-09-07.md`](docs/AUDIT_2026-09-07.md), а проверка справки, адаптивности, offline и Windows-пакета 1.3.1 — в [`docs/AUDIT_2026-09-08_1.3.1.md`](docs/AUDIT_2026-09-08_1.3.1.md). Постоянные ворота равенства версий описаны в [`docs/RELEASE_PARITY.md`](docs/RELEASE_PARITY.md). История изменений перечислена в [`CHANGELOG.md`](CHANGELOG.md).
+Полный геометрический и экспортный протокол релиза 1.3 сохранён в [`docs/AUDIT_2026-09-07.md`](docs/AUDIT_2026-09-07.md), проверка справки, адаптивности, offline и Windows-пакета 1.3.1 — в [`docs/AUDIT_2026-09-08_1.3.1.md`](docs/AUDIT_2026-09-08_1.3.1.md), а полный локальный, CI, live и release-аудит 1.4.0 — в [`docs/AUDIT_2026-09-13_1.4.0.md`](docs/AUDIT_2026-09-13_1.4.0.md). Постоянные ворота равенства версий описаны в [`docs/RELEASE_PARITY.md`](docs/RELEASE_PARITY.md). История изменений перечислена в [`CHANGELOG.md`](CHANGELOG.md).
 
 Матрица мобильных экранов, границы текущей PWA и проверенный план отдельной Android/RuStore-версии описаны в [`docs/MOBILE_ANDROID_RUSTORE.md`](docs/MOBILE_ANDROID_RUSTORE.md).
 
