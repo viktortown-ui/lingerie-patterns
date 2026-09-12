@@ -47,14 +47,37 @@ const styleOptions = [
 
 const options = [...fabricOptions, ...styleOptions, upperSeamAllowanceOption];
 
+const measurementKeys = new Set([
+  "bust",
+  "waist",
+  "highBust",
+  "frontWidth",
+  "backWidth",
+  "shoulderLength",
+  "frontWaistLength",
+  "backWaistLength",
+]);
+const fields = upperBodyFields.filter((field) => measurementKeys.has(field.key));
+const defaults = Object.fromEntries(fields.map((field) => [field.key, upperBodyDefaults[field.key]]));
+const sections = upperBodySections.map((section) => section.id === "measurements"
+  ? {
+      ...section,
+      short: { ru: "8 рабочих мерок", en: "8 working measurements" },
+      description: {
+        ru: "Поля ограничены восемью мерками, которые действительно меняют ширину, баланс, плечо, горловину или длину топа.",
+        en: "The form is limited to the eight measurements that actually change the top's width, balance, shoulder, neckline, or length.",
+      },
+    }
+  : section);
+
 export const schema = {
   id: "crop_top_basic",
   name: { ru: "Базовый эластичный топ", en: "Basic stretch crop top" },
   bodyRegion: "upper",
   unit: "cm",
-  sections: upperBodySections,
-  fields: upperBodyFields,
-  defaults: upperBodyDefaults,
+  sections,
+  fields,
+  defaults,
   options,
   optionDefaults: optionDefaults(options),
   validate: validateUpperBody,

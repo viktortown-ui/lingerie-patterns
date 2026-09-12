@@ -20,31 +20,61 @@ function finite(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-export function normalizeUpperBodyMeasurements(raw = {}) {
-  return {
-    bust: finite(raw.bust, 92),
-    underbust: finite(raw.underbust, 78),
-    waist: finite(raw.waist, 72),
-    highBust: finite(raw.highBust, 88),
-    frontWidth: finite(raw.frontWidth, 35),
-    backWidth: finite(raw.backWidth, 36),
-    shoulderLength: finite(raw.shoulderLength, 12.5),
-    frontWaistLength: finite(raw.frontWaistLength, 45),
-    backWaistLength: finite(raw.backWaistLength, 41),
-    bustHeight: finite(raw.bustHeight, 27),
-    bustPointDistance: finite(raw.bustPointDistance, 19),
-  };
+const UPPER_BODY_FALLBACKS = Object.freeze({
+  bust: 92,
+  underbust: 78,
+  waist: 72,
+  highBust: 88,
+  frontWidth: 35,
+  backWidth: 36,
+  shoulderLength: 12.5,
+  frontWaistLength: 45,
+  backWaistLength: 41,
+  bustHeight: 27,
+  bustPointDistance: 19,
+});
+
+function normalizeMeasurements(raw, keys) {
+  return Object.fromEntries(keys.map((key) => [key, finite(raw[key], UPPER_BODY_FALLBACKS[key])]));
 }
 
-function assertMeasurements(measurements) {
+export function normalizeBraletteMeasurements(raw = {}) {
+  return normalizeMeasurements(raw, ["bust", "underbust", "bustHeight", "bustPointDistance"]);
+}
+
+export function normalizeCropTopMeasurements(raw = {}) {
+  return normalizeMeasurements(raw, [
+    "bust",
+    "waist",
+    "highBust",
+    "frontWidth",
+    "backWidth",
+    "shoulderLength",
+    "frontWaistLength",
+    "backWaistLength",
+  ]);
+}
+
+function assertPositiveMeasurements(measurements) {
   if (Object.values(measurements).some((value) => !Number.isFinite(value) || value <= 0)) {
     throw new Error("Upper-body measurements must contain positive finite numbers.");
   }
-  if (measurements.bust < measurements.underbust + 4 || measurements.bust <= measurements.highBust) {
-    throw new Error("Bust, underbust, and high-bust measurements are incompatible.");
+}
+
+function assertBraletteMeasurements(measurements) {
+  assertPositiveMeasurements(measurements);
+  if (measurements.bust < measurements.underbust + 4) {
+    throw new Error("Bust and underbust measurements are incompatible.");
   }
-  if (measurements.frontWaistLength < measurements.bustHeight + 7) {
-    throw new Error("Front waist length must extend below the bust point.");
+  if (measurements.bustPointDistance >= measurements.bust * 0.5) {
+    throw new Error("Bust-point distance is incompatible with the full bust circumference.");
+  }
+}
+
+function assertCropTopMeasurements(measurements) {
+  assertPositiveMeasurements(measurements);
+  if (measurements.bust <= measurements.highBust) {
+    throw new Error("Bust and high-bust measurements are incompatible.");
   }
 }
 
@@ -150,8 +180,8 @@ function commonOptions(raw = {}) {
 }
 
 export function draftSoftBralette(rawMeasurements, rawOptions = {}, config = {}) {
-  const measurements = normalizeUpperBodyMeasurements(rawMeasurements);
-  assertMeasurements(measurements);
+  const measurements = normalizeBraletteMeasurements(rawMeasurements);
+  assertBraletteMeasurements(measurements);
   const options = {
     ...commonOptions(rawOptions),
     cupCoverage: rawOptions.cupCoverage || "medium",
@@ -206,7 +236,6 @@ export function draftSoftBralette(rawMeasurements, rawOptions = {}, config = {})
   ];
   const actualBandLength = frontBandWidth + wingWidth * 2 - closureExtension;
   const bandDifferenceMm = Math.abs(actualBandLength - targetBandLength) * 10;
-  const strapLength = clamp(measurements.frontWaistLength * 0.58, 24, 42);
   const elasticLength = targetBandLength * stretchScale(options.elasticWorkingStretch) + closureExtension + 4;
   const warnings = [bilingual("Экспериментальная мягкая основа без каркасов: перед основной тканью обязательны макет, примерка и проверка поддержки.", "Experimental wireless soft base: make and fit a toile, then verify support before using final fabric.")];
   if (options.recovery === "weak") warnings.push(bilingual("Для бралетта выбрана ткань со слабым восстановлением — поддержка может быть недостаточной.", "Weak fabric recovery may provide insufficient bralette support."));
@@ -218,7 +247,7 @@ export function draftSoftBralette(rawMeasurements, rawOptions = {}, config = {})
       unit: "cm",
       title: config.title || bilingual("Мягкий бралетт без каркасов", "Wireless soft bralette"),
       moduleId: config.moduleId || "bralette_soft",
-      moduleVersion: config.version || "0.2.0",
+      moduleVersion: config.version || "0.3.0",
       seamAllowanceApplied: options.seamAllowance > 0,
       seamAllowanceMm: options.seamAllowance,
       edgeAllowancesMm: { joining: options.seamAllowance, neckline: options.seamAllowance, underband: options.seamAllowance, fold: 0 },
@@ -234,7 +263,7 @@ export function draftSoftBralette(rawMeasurements, rawOptions = {}, config = {})
       materials: [
         { label: bilingual("Эластичное полотно шириной 140–150 см", "Stretch fabric, 140–150 cm wide"), value: bilingual("примерно 40 см", "about 40 cm") },
         { label: bilingual("Резинка под грудь", "Underbust elastic"), value: bilingual(`${elasticLength.toFixed(1)} см + запас`, `${elasticLength.toFixed(1)} cm plus spare`) },
-        { label: bilingual(`Бретельная резинка ${options.strapWidthCm} см`, `${options.strapWidthCm} cm strap elastic`), value: bilingual(`${(strapLength * 2).toFixed(0)} см + запас`, `${(strapLength * 2).toFixed(0)} cm plus spare`) },
+        { label: bilingual(`Бретельная резинка ${options.strapWidthCm} см`, `${options.strapWidthCm} cm strap elastic`), value: bilingual("около 100 см; уточнить на примерке", "about 100 cm; confirm at fitting") },
         ...(options.cupLining ? [{ label: bilingual("Эластичная подкладка чашек", "Stretch cup lining"), value: bilingual("примерно 25 см", "about 25 cm") }] : []),
       ],
       instructions: [
@@ -250,8 +279,8 @@ export function draftSoftBralette(rawMeasurements, rawOptions = {}, config = {})
 }
 
 export function draftStretchCropTop(rawMeasurements, rawOptions = {}, config = {}) {
-  const measurements = normalizeUpperBodyMeasurements(rawMeasurements);
-  assertMeasurements(measurements);
+  const measurements = normalizeCropTopMeasurements(rawMeasurements);
+  assertCropTopMeasurements(measurements);
   const options = { ...commonOptions(rawOptions), neckline: rawOptions.neckline || "round", topLength: rawOptions.topLength || "crop", fit: rawOptions.fit || "close", hemFinish: rawOptions.hemFinish || "turn" };
   const scaleX = stretchScale(options.workingStretchX);
   const scaleY = stretchScale(options.workingStretchY);
@@ -306,7 +335,7 @@ export function draftStretchCropTop(rawMeasurements, rawOptions = {}, config = {
       unit: "cm",
       title: config.title || bilingual("Базовый эластичный топ", "Basic stretch crop top"),
       moduleId: config.moduleId || "crop_top_basic",
-      moduleVersion: config.version || "0.2.0",
+      moduleVersion: config.version || "0.3.0",
       seamAllowanceApplied: options.seamAllowance > 0,
       seamAllowanceMm: options.seamAllowance,
       edgeAllowancesMm: { joining: options.seamAllowance, neckline: options.seamAllowance, armhole: options.seamAllowance, hem: options.seamAllowance, fold: 0 },

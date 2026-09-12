@@ -12,6 +12,13 @@ const module = new PatternModule({
     en: "Thong or tanga with adjustable rise, leg line, and narrow-back width.",
   },
   status: "ready-for-toile",
+  fitRisk: {
+    level: "moderate",
+    reason: {
+      ru: "Эластичность даёт небольшой допуск, но положение ластовицы, дуга сидения и узкая спинка должны быть проверены пробным образцом.",
+      en: "Stretch allows limited tolerance, but gusset position, crotch arc, and the narrow back must be checked with a toile.",
+    },
+  },
   tags: ["7 мерок", "ткань и резинка", "точная печать"],
   schema,
   draft: draftThong,

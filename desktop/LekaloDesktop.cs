@@ -19,9 +19,9 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyProduct("ЛЕКАЛО — Pattern Studio")]
 [assembly: AssemblyCompany("LEKALO Open Source")]
 [assembly: AssemblyCopyright("Copyright © 2026 LEKALO contributors")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
-[assembly: AssemblyInformationalVersion("1.3.1")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyInformationalVersion("1.4.0")]
 
 namespace Lekalo.PatternStudio.Desktop
 {

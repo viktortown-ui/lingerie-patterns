@@ -67,6 +67,55 @@ function heroTitle(language) {
   return title;
 }
 
+function modelCard(module, language, onSelect) {
+  const card = createEl("article", {
+    className: module.status === "experimental" ? "model-card is-experimental" : "model-card",
+  });
+  const visual = modelArt(module.id);
+  visual.appendChild(createEl("span", {
+    className: "status-badge",
+    text: module.status === "ready-for-toile"
+      ? copy(language, "Основа для макета", "Toile-ready base")
+      : copy(language, "Экспериментальная основа", "Experimental base"),
+  }));
+  const content = createEl("div", { className: "model-card-content" });
+  const tags = createEl("div", { className: "tag-row" });
+  tags.appendChild(createEl("span", {
+    text: copy(
+      language,
+      `${module.schema.fields.length} мерок`,
+      `${module.schema.fields.length} measurements`,
+    ),
+  }));
+  (module.tags || [])
+    .filter((tag) => !/^\d+\s+(?:мер|measurement)/iu.test(tag))
+    .forEach((tag) => tags.appendChild(createEl("span", { text: tag })));
+  const risk = createEl("div", { className: `fit-risk-card is-${module.fitRisk?.level || "high"}` });
+  risk.append(
+    createEl("strong", {
+      text: module.fitRisk?.level === "moderate"
+        ? copy(language, "Средний риск посадки", "Moderate fit risk")
+        : copy(language, "Высокий риск посадки", "High fit risk"),
+    }),
+    createEl("span", { text: resolveText(module.fitRisk?.reason || "") }),
+  );
+  const openButton = createEl("button", {
+    className: "primary-button model-open",
+    text: copy(language, "Создать основу", "Create base"),
+    attrs: { type: "button" },
+  });
+  openButton.addEventListener("click", () => onSelect(module.id));
+  content.append(
+    createEl("h3", { text: resolveText(module.schema?.name || module.name) }),
+    createEl("p", { text: resolveText(module.description) }),
+    risk,
+    tags,
+    openButton,
+  );
+  card.append(visual, content);
+  return card;
+}
+
 export function Home({
   modules,
   language,
@@ -114,8 +163,8 @@ export function Home({
       className: "hero-lead",
       text: copy(
         language,
-        "Снимите мерки, проверьте ткань и получите персональное лекало с контрольными швами, расходом материалов и точной печатью.",
-        "Enter measurements, test the fabric, and get a personal draft with seam checks, material estimates, and true-scale printing.",
+        "Введите повторно проверенные мерки и получите расчётную основу для обязательного пробного образца — с контролем швов, материала и масштаба печати.",
+        "Enter repeat-checked measurements and get a calculated base for a required toile, with seam, fabric, and print-scale checks.",
       ),
     }),
   );
@@ -123,14 +172,14 @@ export function Home({
   [
     copy(language, "Мерки остаются на этом устройстве", "Measurements stay on this device"),
     copy(language, "Работает без интернета", "Works offline"),
-    copy(language, "SVG + PDF + проверяемый DXF", "SVG + PDF + checked DXF"),
+    copy(language, "SVG + PDF + DXF с честным статусом", "SVG + PDF + honestly qualified DXF"),
   ].forEach((text) => promises.appendChild(createEl("span", { text })));
   heroCopy.append(promises);
 
   const journey = createEl("div", { className: "journey-card" });
   journey.appendChild(createEl("div", { className: "journey-title", text: copy(language, "От мерки до печати", "From tape to print") }));
   [
-    ["01", copy(language, "Тело", "Body"), copy(language, "Связанные мерки для модели", "Connected measurements for each pattern")],
+    ["01", copy(language, "Тело", "Body"), copy(language, "Первый и повторный замер", "First and repeat measurement")],
     ["02", copy(language, "Материал", "Fabric"), copy(language, "Растяжимость и восстановление", "Stretch and recovery")],
     ["03", copy(language, "Фасон", "Style"), copy(language, "Посадка и покрытие", "Rise and coverage")],
     ["04", copy(language, "Результат", "Result"), copy(language, "Проверки, пошив и печать", "Checks, sewing, and print")],
@@ -156,35 +205,42 @@ export function Home({
       ),
     }),
   );
-  const grid = createEl("div", { className: "model-grid" });
-  modules.filter((module) => !module.hidden).forEach((module) => {
-    const card = createEl("article", { className: "model-card" });
-    const visual = modelArt(module.id);
-    visual.appendChild(createEl("span", {
-      className: "status-badge",
-      text: module.status === "ready-for-toile"
-        ? copy(language, "Готово к пробному образцу", "Ready for a toile")
-        : copy(language, "Экспериментальная основа", "Experimental base"),
-    }));
-    const content = createEl("div", { className: "model-card-content" });
-    const tags = createEl("div", { className: "tag-row" });
-    (module.tags || []).forEach((tag) => tags.appendChild(createEl("span", { text: tag })));
-    const openButton = createEl("button", {
-      className: "primary-button model-open",
-      text: copy(language, "Создать выкройку", "Create pattern"),
-      attrs: { type: "button" },
-    });
-    openButton.addEventListener("click", () => onSelect(module.id));
-    content.append(
-      createEl("h3", { text: resolveText(module.schema?.name || module.name) }),
-      createEl("p", { text: resolveText(module.description) }),
-      tags,
-      openButton,
+  const visibleModules = modules.filter((module) => !module.hidden);
+  const catalogGroups = [
+    {
+      id: "toile-first",
+      title: copy(language, "Для первого пробного образца", "Start with these toile bases"),
+      description: copy(
+        language,
+        "Более терпимые основы для эластичных материалов. Они всё равно требуют точных мерок и примерки.",
+        "More forgiving bases for stretch fabrics. Accurate measurements and a fitting are still required.",
+      ),
+      modules: visibleModules.filter((module) => module.status === "ready-for-toile"),
+    },
+    {
+      id: "experimental",
+      title: copy(language, "Экспериментальная лаборатория", "Experimental lab"),
+      description: copy(
+        language,
+        "Прилегающие верхние основы с повышенным риском. Используйте только для макета; файлы нельзя считать производственно проверенными.",
+        "Close-fitting upper-body bases with higher risk. Use them for toiles only; files are not production-validated.",
+      ),
+      modules: visibleModules.filter((module) => module.status !== "ready-for-toile"),
+    },
+  ];
+  catalog.appendChild(catalogHead);
+  catalogGroups.filter((group) => group.modules.length).forEach((group) => {
+    const section = createEl("section", { className: `catalog-group catalog-group--${group.id}` });
+    const heading = createEl("div", { className: "catalog-group-heading" });
+    heading.append(
+      createEl("h3", { text: group.title }),
+      createEl("p", { text: group.description }),
     );
-    card.append(visual, content);
-    grid.appendChild(card);
+    const grid = createEl("div", { className: "model-grid" });
+    group.modules.forEach((module) => grid.appendChild(modelCard(module, language, onSelect)));
+    section.append(heading, grid);
+    catalog.appendChild(section);
   });
-  catalog.append(catalogHead, grid);
 
   const library = LibraryHub({
     language,

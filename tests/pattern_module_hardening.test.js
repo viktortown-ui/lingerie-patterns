@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  moduleAcceptsDraftVersion,
   PatternModule,
   PatternModuleValidationError,
 } from "../src/core/pattern/PatternModule.js";
@@ -60,6 +61,11 @@ function validDescriptor(overrides = {}) {
     category: "test.contract",
     version: "1.2.3",
     status: "experimental",
+    fitRisk: {
+      level: "moderate",
+      reason: { ru: "Нужен пробный образец", en: "A toile is required" },
+    },
+    compatibleDraftVersions: ["1.1.0"],
     tags: ["test"],
     schema,
     draft,
@@ -80,12 +86,17 @@ test("PatternModule validates and deeply freezes metadata while preserving draft
   assert.ok(Object.isFrozen(module));
   assert.ok(Object.isFrozen(module.name));
   assert.ok(Object.isFrozen(module.tags));
+  assert.ok(Object.isFrozen(module.fitRisk));
+  assert.ok(Object.isFrozen(module.fitRisk.reason));
+  assert.ok(Object.isFrozen(module.compatibleDraftVersions));
   assert.ok(Object.isFrozen(module.schema));
   assert.ok(Object.isFrozen(module.schema.fields));
   assert.ok(Object.isFrozen(module.schema.fields[0]));
   assert.ok(Object.isFrozen(module.schema.defaults));
   assert.equal(Object.isFrozen(source.schema), false, "freezing a module must not mutate shared source metadata");
   assert.throws(() => module.tags.push("mutated"), TypeError);
+  assert.throws(() => { module.fitRisk.level = "low"; }, TypeError);
+  assert.throws(() => module.compatibleDraftVersions.push("1.0.0"), TypeError);
   assert.throws(() => { module.schema.defaults.width = 99; }, TypeError);
   assert.equal(module.schema.defaults.width, 20);
 });
@@ -123,6 +134,48 @@ test("PatternModule enforces schema identity, semantic versions, and status enum
   assert.throws(
     () => new PatternModule(validDescriptor({ status: "production-ready" })),
     /module\.status: must be one of/,
+  );
+});
+
+test("PatternModule requires bilingual fit risk for visible modules", () => {
+  assert.throws(
+    () => new PatternModule(validDescriptor({ fitRisk: null })),
+    /module\.fitRisk: is required for a visible pattern module/,
+  );
+  assert.throws(
+    () => new PatternModule(validDescriptor({ fitRisk: { level: "unknown", reason: { ru: "Причина", en: "Reason" } } })),
+    /module\.fitRisk\.level: must be one of/,
+  );
+  assert.throws(
+    () => new PatternModule(validDescriptor({ fitRisk: { level: "high", reason: { ru: "Причина" } } })),
+    /module\.fitRisk\.reason\.en: must be a non-empty string/,
+  );
+  const hidden = new PatternModule(validDescriptor({ hidden: true, fitRisk: null }));
+  assert.equal(hidden.fitRisk, null);
+});
+
+test("PatternModule validates compatible draft versions", () => {
+  const module = new PatternModule(validDescriptor());
+  assert.equal(moduleAcceptsDraftVersion(module, "1.2.3"), true);
+  assert.equal(moduleAcceptsDraftVersion(module, "1.1.0"), true);
+  assert.equal(moduleAcceptsDraftVersion(module, "1.0.0"), false);
+  assert.equal(moduleAcceptsDraftVersion(module, ""), false);
+  assert.equal(moduleAcceptsDraftVersion(module, null), true, "versionless legacy drafts remain readable");
+  assert.throws(
+    () => new PatternModule(validDescriptor({ compatibleDraftVersions: "1.1.0" })),
+    /module\.compatibleDraftVersions: must be an array/,
+  );
+  assert.throws(
+    () => new PatternModule(validDescriptor({ compatibleDraftVersions: ["legacy"] })),
+    /module\.compatibleDraftVersions\[0\]: must be a semantic version/,
+  );
+  assert.throws(
+    () => new PatternModule(validDescriptor({ compatibleDraftVersions: ["1.2.3"] })),
+    /must not repeat module\.version/,
+  );
+  assert.throws(
+    () => new PatternModule(validDescriptor({ compatibleDraftVersions: ["1.1.0", "1.1.0"] })),
+    /contains duplicate version 1\.1\.0/,
   );
 });
 

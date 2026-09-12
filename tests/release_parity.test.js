@@ -9,6 +9,13 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const read = (relativePath) => readFileSync(path.join(projectRoot, relativePath), "utf8");
 const slash = (value) => value.split(path.sep).join("/");
 
+// Explicit release pairs make a one-sided APP_VERSION or Service Worker BUILD
+// change fail CI. Add a new unique pair only when preparing a real release.
+const SERVICE_WORKER_BUILD_BY_APP_VERSION = new Map([
+  ["1.3.1", "v22"],
+  ["1.4.0", "v23"],
+]);
+
 function importedModules(entryPath) {
   const visited = new Set();
   const queue = [entryPath];
@@ -81,4 +88,26 @@ test("release version is synchronized across web metadata and Windows binary met
   assert.match(desktop, new RegExp(`AssemblyFileVersion\\("${windowsVersion.replaceAll(".", "\\.")}"\\)`));
   assert.match(desktop, new RegExp(`AssemblyInformationalVersion\\("${APP_VERSION.replaceAll(".", "\\.")}"\\)`));
   assert.match(manifest, new RegExp(`assemblyIdentity\\s+version="${windowsVersion.replaceAll(".", "\\.")}"`));
+});
+
+test("release version and Service Worker cache build form an approved unique pair", () => {
+  const serviceWorker = read("sw.js");
+  const build = serviceWorker.match(/const BUILD = ["']([^"']+)["'];/u)?.[1];
+  const expectedBuild = SERVICE_WORKER_BUILD_BY_APP_VERSION.get(APP_VERSION);
+
+  assert.ok(expectedBuild, `APP_VERSION ${APP_VERSION} has no approved Service Worker BUILD`);
+  assert.equal(build, expectedBuild, `sw.js BUILD must be ${expectedBuild} for APP_VERSION ${APP_VERSION}`);
+  assert.equal(
+    new Set(SERVICE_WORKER_BUILD_BY_APP_VERSION.values()).size,
+    SERVICE_WORKER_BUILD_BY_APP_VERSION.size,
+    "Every application release must use a unique Service Worker BUILD",
+  );
+});
+
+test("tagged Windows releases enforce version identity and immutable assets", () => {
+  const workflow = read(".github/workflows/desktop-package.yml");
+  assert.match(workflow, /\$expectedTag = "v\$version"/u);
+  assert.match(workflow, /\$env:GITHUB_REF_NAME -ne \$expectedTag/u);
+  assert.match(workflow, /gh release create \$tag[\s\S]*--verify-tag/u);
+  assert.doesNotMatch(workflow, /--clobber/u);
 });

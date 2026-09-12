@@ -1,5 +1,6 @@
 import { Units } from "../geometry/Units.js";
 import { collectPaths } from "../pattern/panels.js";
+import { resolveExportSafety } from "./exportSafety.js";
 import { exactPathBounds, validateClosedPathGeometry } from "./pathValidation.js";
 
 const SUPPORTED_UNITS = new Set(["mm", "cm", "in"]);
@@ -480,6 +481,8 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const mode = options.mode || "export";
   const includeInfo = mode !== "preview";
   const isPreview = mode === "preview";
+  const safety = resolveExportSafety({ draft, module: options.module, moduleStatus: options.moduleStatus });
+  const includeSafety = safety.experimental && !isPreview;
   const highlightSeamAllowance = Boolean(options.highlightSeamAllowance && isPreview);
   const includeCalibration = !isPreview;
   const showLabels = options.showLabels ?? true;
@@ -492,7 +495,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const marginLeft = Units.fromMm(10, unit);
   const marginRight = Units.fromMm(10, unit);
   const marginTop = Units.fromMm(10, unit);
-  const marginBottom = Units.fromMm(35, unit);
+  const marginBottom = Units.fromMm(includeSafety ? 49 : 35, unit);
   const calibrationSize = Units.fromMm(50, unit);
   const calibrationLarge = Units.fromMm(100, unit);
   const calibrationGap = Units.fromMm(6, unit);
@@ -669,12 +672,33 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
   const calibrationLabel = resolveLabelText(labels.calibration, resolveText) || "50mm";
   const calibrationLargeLabel =
     resolveLabelText(labels.calibrationLarge, resolveText) || "100mm";
+  const safetyBannerMarkup = includeSafety
+    ? (() => {
+        const x = exportBounds.minX + Units.fromMm(4, unit);
+        const y = contentBounds.maxY + Units.fromMm(3, unit);
+        const bannerWidth = width - Units.fromMm(8, unit);
+        const bannerHeight = Units.fromMm(10, unit);
+        const fontSize = Units.fromMm(2.8, unit);
+        return `<g id="lekalo-export-safety-warning" data-warning-code="${escapeXml(safety.code)}">
+    <rect x="${x}" y="${y}" width="${bannerWidth}" height="${bannerHeight}" fill="#fff2f2" stroke="#b42318" stroke-width="${formatLength(
+          Units.fromMm(0.45, unit)
+        )}" />
+    <text x="${x + Units.fromMm(3, unit)}" y="${y + Units.fromMm(4, unit)}" font-size="${formatFontSize(
+          fontSize
+        )}" fill="#b42318">${escapeXml(safety.shortWarning)}</text>
+    <text x="${x + Units.fromMm(3, unit)}" y="${y + Units.fromMm(7.5, unit)}" font-size="${formatFontSize(
+          fontSize
+        )}" fill="#b42318">NOT FOR PRODUCTION</text>
+  </g>`;
+      })()
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${widthMm}mm" height="${heightMm}mm" preserveAspectRatio="${escapeXml(
     preserveAspectRatio
-  )}">
+  )}"${includeSafety ? ` data-fit-status="experimental" data-export-warning-code="${escapeXml(safety.code)}"` : ""}>
   ${includeInfo && summaryText ? `<metadata id="measurements-summary">${escapeXml(summaryText)}</metadata>` : ""}
+  ${includeSafety ? `<metadata id="lekalo-export-safety">status=experimental; code=${escapeXml(safety.code)}; usage=toile-only; productionVerified=false</metadata>` : ""}
   <defs>
     <marker id="arrow" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L4,2 L0,4 z" fill="#333" />
@@ -684,6 +708,7 @@ export function svgExport(draft, measurementsSummary = [], options = {}) {
     </marker>
   </defs>
   <rect x="${exportBounds.minX}" y="${exportBounds.minY}" width="${width}" height="${height}" fill="white" />
+  ${safetyBannerMarkup}
   ${pathMarkup}
   ${annotationMarkup}
   ${titleBlocks.markup}

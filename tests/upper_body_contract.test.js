@@ -11,6 +11,24 @@ import { validateSchema } from "../src/core/validate/validate.js";
 const modules = [braletteModule, cropTopModule];
 const EPSILON = 1e-6;
 
+const BRALLETTE_KEYS = ["bust", "underbust", "bustHeight", "bustPointDistance"];
+const CROP_TOP_KEYS = [
+  "bust",
+  "waist",
+  "highBust",
+  "frontWidth",
+  "backWidth",
+  "shoulderLength",
+  "frontWaistLength",
+  "backWaistLength",
+];
+
+function geometrySignature(draft) {
+  return draft.panels
+    .map((panel) => `${panel.id}:${panel.paths.cut.toSVGPath()}`)
+    .join("|");
+}
+
 function measurementsAt(schema, boundary) {
   if (boundary === "default") return { ...schema.defaults };
   return Object.fromEntries(schema.fields.map((field) => [field.key, field[boundary]]));
@@ -96,6 +114,60 @@ modules.forEach((module) => {
   });
 });
 
+test("upper-body schemas expose only measurements that affect their draft", () => {
+  assert.deepEqual(braletteModule.schema.fields.map((field) => field.key), BRALLETTE_KEYS);
+  assert.deepEqual(Object.keys(braletteModule.schema.defaults), BRALLETTE_KEYS);
+  assert.deepEqual(cropTopModule.schema.fields.map((field) => field.key), CROP_TOP_KEYS);
+  assert.deepEqual(Object.keys(cropTopModule.schema.defaults), CROP_TOP_KEYS);
+  assert.equal(braletteModule.version, "0.3.0");
+  assert.equal(cropTopModule.version, "0.3.0");
+  assert.deepEqual(braletteModule.compatibleDraftVersions, ["0.2.0"]);
+  assert.deepEqual(cropTopModule.compatibleDraftVersions, ["0.2.0"]);
+});
+
+[
+  [braletteModule, BRALLETTE_KEYS],
+  [cropTopModule, CROP_TOP_KEYS],
+].forEach(([module, keys]) => {
+  test(`${module.id}: every exposed measurement changes drafted geometry`, () => {
+    const baseline = geometrySignature(module.draft(module.schema.defaults, module.schema.optionDefaults));
+    keys.forEach((key) => {
+      const field = module.schema.fields.find((item) => item.key === key);
+      const changed = {
+        ...module.schema.defaults,
+        [key]: module.schema.defaults[key] + (field.step || 0.5),
+      };
+      const next = geometrySignature(module.draft(changed, module.schema.optionDefaults));
+      assert.notEqual(next, baseline, `${module.id}.${key} must affect a pattern path`);
+    });
+  });
+});
+
+test("legacy 0.2.0 upper-body fields cannot silently affect 0.3.0 geometry", () => {
+  const bralette = braletteModule.draft(braletteModule.schema.defaults, braletteModule.schema.optionDefaults);
+  const legacyBralette = braletteModule.draft({
+    ...braletteModule.schema.defaults,
+    waist: 150,
+    highBust: 154,
+    frontWidth: 52,
+    backWidth: 54,
+    shoulderLength: 20,
+    frontWaistLength: 65,
+    backWaistLength: 58,
+  }, braletteModule.schema.optionDefaults);
+  assert.equal(geometrySignature(legacyBralette), geometrySignature(bralette));
+  assert.deepEqual(legacyBralette.meta.materials, bralette.meta.materials);
+
+  const top = cropTopModule.draft(cropTopModule.schema.defaults, cropTopModule.schema.optionDefaults);
+  const legacyTop = cropTopModule.draft({
+    ...cropTopModule.schema.defaults,
+    underbust: 140,
+    bustHeight: 40,
+    bustPointDistance: 32,
+  }, cropTopModule.schema.optionDefaults);
+  assert.equal(geometrySignature(legacyTop), geometrySignature(top));
+});
+
 test("crop top keeps side and shoulder seams matched while stretch changes width", () => {
   const low = cropTopModule.draft(cropTopModule.schema.defaults, { ...cropTopModule.schema.optionDefaults, workingStretchX: 5 });
   const high = cropTopModule.draft(cropTopModule.schema.defaults, { ...cropTopModule.schema.optionDefaults, workingStretchX: 30 });
@@ -110,6 +182,9 @@ test("soft bralette uses one band target and never claims an underwire", () => {
   assert.ok(draft.meta.engineering.cupHeightCm > 0);
   assert.ok(draft.meta.engineering.bandDifferenceMm <= 1);
   assert.equal(draft.meta.checks.find((check) => check.id === "wire")?.status, "pass");
+  const strapEstimate = draft.meta.materials.find((item) => item.label.en.includes("strap elastic"));
+  assert.match(strapEstimate.value.ru, /100 см/u);
+  assert.match(strapEstimate.value.en, /100 cm/u);
 });
 
 test("soft bralette blocks proportions that cannot fit the minimum side wing", () => {
@@ -117,7 +192,6 @@ test("soft bralette blocks proportions that cannot fit the minimum side wing", (
     ...braletteModule.schema.defaults,
     bust: 150,
     underbust: 60,
-    highBust: 90,
     bustPointDistance: 29,
   };
   const options = { ...braletteModule.schema.optionDefaults, workingStretchX: 25 };

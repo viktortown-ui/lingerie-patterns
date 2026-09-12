@@ -7,6 +7,7 @@ import {
   jsonImportErrorMessage,
   MAX_JSON_IMPORT_BYTES,
   MAX_PROFILE_COUNT,
+  profileListFromBackup,
   readBoundedJsonFile,
 } from "../src/ui/utils/jsonImport.js";
 
@@ -67,4 +68,22 @@ test("profile import count is bounded and errors are clear in Russian and Englis
   assert.match(jsonImportErrorMessage(sizeError, "en"), /2 MB/);
   assert.match(jsonImportErrorMessage(new JsonImportError("invalid-json", "bad"), "ru"), /JSON/);
   assert.match(jsonImportErrorMessage(new JsonImportError("invalid-json", "bad"), "en"), /JSON/);
+});
+
+test("profile backup wrappers fail closed on unknown format or future version", () => {
+  const profiles = [{ id: "p1" }];
+  assert.equal(profileListFromBackup(profiles), profiles, "the historical bare-array backup remains readable");
+  assert.equal(profileListFromBackup({ format: "lekalo-profiles", version: 1, profiles }), profiles);
+  assert.throws(
+    () => profileListFromBackup({ format: "other", version: 1, profiles }),
+    (error) => error instanceof JsonImportError && error.code === "unsupported-profile-format",
+  );
+  assert.throws(
+    () => profileListFromBackup({ format: "lekalo-profiles", version: 999, profiles }),
+    (error) => error instanceof JsonImportError && error.code === "unsupported-profile-version" && error.version === 999,
+  );
+  assert.equal(
+    jsonImportErrorMessage(new JsonImportError("unsupported-profile-version", "", { version: 999 }), "ru", "profiles"),
+    "Версия резервной копии профилей 999 не поддерживается.",
+  );
 });

@@ -1,3 +1,5 @@
+import { moduleAcceptsDraftVersion } from "../pattern/PatternModule.js";
+
 export const TEMPLATE_KIND = "lekalo-style-template";
 export const TEMPLATE_FORMAT_VERSION = 1;
 export const TEMPLATE_LIBRARY_KIND = "lekalo-template-library";
@@ -204,7 +206,7 @@ function assertModule(module, moduleId, moduleVersion) {
   if (!module || module.id !== moduleId || !module.schema || module.schema.id !== moduleId) {
     fail("unknown-module", "template.moduleId", `Pattern module is unavailable: ${moduleId}.`);
   }
-  if (module.version !== moduleVersion) {
+  if (!moduleAcceptsDraftVersion(module, moduleVersion)) {
     fail(
       "module-version-mismatch",
       "template.moduleVersion",

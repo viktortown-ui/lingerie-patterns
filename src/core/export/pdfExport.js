@@ -1,5 +1,6 @@
 import { Units } from "../geometry/Units.js";
 import { collectPaths } from "../pattern/panels.js";
+import { resolveExportSafety } from "./exportSafety.js";
 import { exactPathBounds, validateClosedPathGeometry } from "./pathValidation.js";
 
 const PAPER_SIZES = Object.freeze({
@@ -637,7 +638,7 @@ function tileGuides({ row, col, overlapPt, layout }) {
   return commands.filter(Boolean).join("\n");
 }
 
-function headerFooter({ patternTitle, tileId, tileNumber, tileCount, paper, rows, cols, overlapPt, layout }) {
+function headerFooter({ patternTitle, tileId, tileNumber, tileCount, paper, rows, cols, overlapPt, layout, safety }) {
   const { marginPt, pageWidthPt, pageHeightPt, contentTopPt, contentBottomPt } = layout;
   const headerBaseline = pageHeightPt - marginPt - Units.toPtFromMm(5);
   const footerBaseline = marginPt + Units.toPtFromMm(3.5);
@@ -645,11 +646,20 @@ function headerFooter({ patternTitle, tileId, tileNumber, tileCount, paper, rows
   const rightHeader = `Tile ${tileId} | Page ${tileNumber}/${tileCount} | ${paper.label}`;
   const overlapLabel = `${formatNumber((overlapPt / 72) * 25.4)}mm`;
   const footer = `Print 100% | ${overlapLabel} overlap | Map ${rows}x${cols} | PDF page ${tileNumber + 1}/${tileCount + 1}`;
+  const safetyCommands = safety?.experimental
+    ? [
+        `% EXPORT_WARNING_CODE ${commentText(safety.code)}`,
+        "0.72 0.04 0.04 rg",
+        textCommand(safety.shortWarning, marginPt, pageHeightPt - marginPt - Units.toPtFromMm(10.5), 6.5),
+        "0 0 0 rg",
+      ]
+    : [];
   return [
     "% HEADER_FOOTER_UPRIGHT",
     "0 0 0 rg",
     textCommand(title, marginPt, headerBaseline, 8.5),
     textCommand(rightHeader, Math.max(marginPt, pageWidthPt - marginPt - Units.toPtFromMm(70)), headerBaseline, 7.5),
+    ...safetyCommands,
     "0.65 0.65 0.65 RG",
     `${formatNumber(Units.toPtFromMm(0.18))} w`,
     `${formatNumber(marginPt)} ${formatNumber(pageHeightPt - contentTopPt)} m ${formatNumber(pageWidthPt - marginPt)} ${formatNumber(pageHeightPt - contentTopPt)} l S`,
@@ -731,6 +741,7 @@ function calibrationPage({
   labels,
   layout,
   hasStitchPaths,
+  safety,
 }) {
   const { marginPt, pageWidthPt, pageHeightPt } = layout;
   const commands = [
@@ -740,6 +751,15 @@ function calibrationPage({
     textCommand("PATTERN PRINT GUIDE", marginPt, pageHeightPt - marginPt - Units.toPtFromMm(7), 14),
     textCommand(patternTitle, marginPt, pageHeightPt - marginPt - Units.toPtFromMm(15), 10),
   ];
+
+  if (safety?.experimental) {
+    commands.push(
+      `% EXPORT_WARNING_CODE ${commentText(safety.code)}`,
+      "0.72 0.04 0.04 rg",
+      textCommand(safety.warning, marginPt, pageHeightPt - marginPt - Units.toPtFromMm(21), 8),
+      "0 0 0 rg",
+    );
+  }
 
   const defaultInstructions = [
     "Print at 100% / Actual size. Disable Fit to page.",
@@ -751,9 +771,10 @@ function calibrationPage({
     defaultInstructions.push("Grey map cells marked X contain no pattern geometry and are not printed.");
   }
   const extraInstructions = wrapText(info.instructionText || "", 82);
-  const instructionLines = [...defaultInstructions, ...extraInstructions].slice(0, 8);
+  const instructionLines = [...defaultInstructions, ...extraInstructions].slice(0, safety?.experimental ? 7 : 8);
+  const instructionStartMm = safety?.experimental ? 28 : 24;
   instructionLines.forEach((line, index) => {
-    commands.push(textCommand(line, marginPt, pageHeightPt - marginPt - Units.toPtFromMm(24) - index * Units.toPtFromMm(4.5), 8));
+    commands.push(textCommand(line, marginPt, pageHeightPt - marginPt - Units.toPtFromMm(instructionStartMm) - index * Units.toPtFromMm(4.5), 8));
   });
 
   const squareSize = Units.toPtFromMm(100);
@@ -783,6 +804,7 @@ function calibrationPage({
   if (info.generatedAt) infoLines.push(`${labels.generatedLabel || "Generated"}: ${info.generatedAt}`);
   if (info.optionsSummary) infoLines.push(`${labels.optionsLabel || "Options"}: ${info.optionsSummary}`);
   if (info.seamAllowance) infoLines.push(`${labels.seamAllowanceLabel || "Seam allowance"}: ${info.seamAllowance}`);
+  if (safety?.experimental) infoLines.push(`Export status: ${safety.shortWarning}`);
   infoLines.push(`Pattern sheets: ${tileCount}; PDF pages: ${tileCount + 1}; Paper: ${paper.label}`);
   infoLines.forEach((line, index) => {
     commands.push(textCommand(line, mark50X, mark50Y + mark50 - Units.toPtFromMm(8) - index * Units.toPtFromMm(4.5), 7));
@@ -827,6 +849,7 @@ function tilePage({
   unitScale,
   resolveText,
   layout,
+  safety,
 }) {
   const tileId = `R${row + 1}C${col + 1}`;
   const relativeX0Mm = ((tile.minX - tile.geometryMinX) / 72) * 25.4;
@@ -856,7 +879,7 @@ function tilePage({
     "Q",
     tileGuides({ row, col, overlapPt, layout }),
     assemblyMarks(layout),
-    headerFooter({ patternTitle, tileId, tileNumber, tileCount, paper, rows, cols, overlapPt, layout }),
+    headerFooter({ patternTitle, tileId, tileNumber, tileCount, paper, rows, cols, overlapPt, layout, safety }),
   ].filter(Boolean).join("\n");
 }
 
@@ -965,6 +988,7 @@ export function pdfExport(draft, options = {}) {
   };
   const labels = options.labels || {};
   const info = options.info || {};
+  const safety = resolveExportSafety({ draft, module: options.module, moduleStatus: options.moduleStatus });
   const patternTitle = displayText(draft?.meta?.title, resolveText, "Pattern");
   const geometry = geometryCommands(pathEntries, unitScale);
   const annotationGeometry = annotationGeometryCommands(annotations, unitScale);
@@ -1029,6 +1053,7 @@ export function pdfExport(draft, options = {}) {
       labels,
       layout,
       hasStitchPaths,
+      safety,
     }),
   ];
   tiles.forEach(({ row, col, tile }, index) => {
@@ -1051,6 +1076,7 @@ export function pdfExport(draft, options = {}) {
         unitScale,
         resolveText,
         layout,
+        safety,
       })
     );
   });

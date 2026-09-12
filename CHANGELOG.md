@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.0 — 2026-09-13
+
+- Reworked the catalogue around fit risk: toile-ready lower-body bases are separated from the high-risk experimental bralette and crop-top lab.
+- Removed misleading inputs from upper-body models. The bralette now asks for the four measurements used by its geometry; the crop top asks for eight. Legacy `0.2.0` drafts remain readable by the new `0.3.0` modules.
+- Unified version compatibility for local drafts, profiles, projects, and style templates. Incompatible saved drafts are preserved unchanged when opened; compatible legacy data migrates only after an explicit edit or template application.
+- Added a guided first-and-repeat measurement check with the first value hidden until repeat entry, self/helper provenance, range-aware per-field tolerances, automatic invalidation after edits, local draft/profile/project persistence, and a physical-export gate.
+- Added honest per-model fit-risk metadata and explanations in Russian and English. No model is labelled low-risk or guaranteed to fit.
+- Added an acknowledgement dialog for every experimental SVG, PDF, DXF, and graded-DXF package.
+- Permanently marked experimental physical files as `TOILE ONLY / FIT NOT VERIFIED / NOT FOR PRODUCTION`: visible and machine-readable SVG metadata, warnings on every PDF sheet, DXF comments/XDATA/TEXT, qualified filenames, and ZIP manifest fields.
+- Kept size-set provenance honest: repeat verification applies only to the entered base profile, derived sizes never inherit it, and one experimental variant raises the safety status of the complete ZIP.
+- Treated imported JSON as untrusted: project/profile imports reset repeat verification, future container/module versions fail closed, and incompatible local drafts are preserved rather than overwritten during screen initialization.
+- Corrected the bralette strap-elastic estimate so it no longer pretends to derive from an unrelated body measurement.
+- Extended the shared RU/EN help with measurement-repeat, fit-risk, experimental-export, and upper-model A/B/C limitations.
+- Enforced the `1.4.0` / Service Worker `v23` release pair, added Windows package smoke to pull-request CI, and made tagged Windows builds attach ZIP and SHA-256 assets to GitHub Releases.
+
 ## 1.3.1 — 2026-09-08
 
 - Added a searchable bilingual in-app Help Center with contextual entry points on the home, editor, static-pattern, and library screens.

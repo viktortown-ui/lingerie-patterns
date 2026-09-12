@@ -107,6 +107,13 @@ test("template data cannot carry functions, accessors, unsafe URLs, or incompati
   const stale = clone(source);
   stale.moduleVersion = "0.9.0";
   assert.throws(() => assertTemplate(stale, module), expectCode("module-version-mismatch"));
+
+  const compatibleModule = {
+    ...module,
+    version: "1.1.0",
+    compatibleDraftVersions: [source.moduleVersion],
+  };
+  assert.doesNotThrow(() => assertTemplate(source, compatibleModule));
 });
 
 test("single-template JSON import/export is bounded, deterministic, and module-aware", () => {

@@ -9,7 +9,14 @@ export const PATTERN_MODULE_STATUSES = Object.freeze([
   "ready-for-toile",
 ]);
 
+export const PATTERN_FIT_RISK_LEVELS = Object.freeze([
+  "low",
+  "moderate",
+  "high",
+]);
+
 const STATUS_SET = new Set(PATTERN_MODULE_STATUSES);
+const FIT_RISK_SET = new Set(PATTERN_FIT_RISK_LEVELS);
 
 export class PatternModuleValidationError extends TypeError {
   constructor(message, path = "module") {
@@ -45,6 +52,13 @@ function requireLocalizedText(value, path) {
   requirePlainObject(value, path);
   const translations = [value.ru, value.en].filter((item) => typeof item === "string" && item.trim());
   if (!translations.length) fail("must contain a non-empty ru or en translation", path);
+}
+
+function requireBilingualText(value, path) {
+  requirePlainObject(value, path);
+  for (const language of ["ru", "en"]) {
+    requireNonEmptyString(value[language], `${path}.${language}`);
+  }
 }
 
 function requireFiniteNumber(value, path) {
@@ -253,6 +267,32 @@ function validateSemver(value, path) {
   }
 }
 
+function validateFitRisk(fitRisk, hidden) {
+  if (fitRisk == null) {
+    if (!hidden) fail("is required for a visible pattern module", "module.fitRisk");
+    return;
+  }
+  requirePlainObject(fitRisk, "module.fitRisk");
+  requireNonEmptyString(fitRisk.level, "module.fitRisk.level");
+  if (!FIT_RISK_SET.has(fitRisk.level)) {
+    fail(`must be one of: ${PATTERN_FIT_RISK_LEVELS.join(", ")}`, "module.fitRisk.level");
+  }
+  requireBilingualText(fitRisk.reason, "module.fitRisk.reason");
+}
+
+function validateCompatibleDraftVersions(versions, currentVersion) {
+  if (versions == null) return;
+  if (!Array.isArray(versions)) fail("must be an array", "module.compatibleDraftVersions");
+  const unique = new Set();
+  versions.forEach((version, index) => {
+    const path = `module.compatibleDraftVersions[${index}]`;
+    validateSemver(version, path);
+    if (version === currentVersion) fail("must not repeat module.version", path);
+    if (unique.has(version)) fail(`contains duplicate version ${version}`, path);
+    unique.add(version);
+  });
+}
+
 /** Validates either a constructor input or an already-created PatternModule. */
 export function validatePatternModuleDescriptor(descriptor) {
   if (!descriptor || typeof descriptor !== "object" || Array.isArray(descriptor)) {
@@ -276,6 +316,8 @@ export function validatePatternModuleDescriptor(descriptor) {
   if (descriptor.hidden != null && typeof descriptor.hidden !== "boolean") {
     fail("must be a boolean", "module.hidden");
   }
+  validateFitRisk(descriptor.fitRisk, descriptor.hidden === true);
+  validateCompatibleDraftVersions(descriptor.compatibleDraftVersions, descriptor.version);
   if (descriptor.description != null) requireLocalizedText(descriptor.description, "module.description");
   validateSchema(descriptor);
   return descriptor;
@@ -301,6 +343,12 @@ function cloneAndFreeze(value, seen = new WeakMap()) {
   return value;
 }
 
+export function moduleAcceptsDraftVersion(module, version) {
+  return version == null
+    || version === module?.version
+    || module?.compatibleDraftVersions?.includes(version) === true;
+}
+
 export class PatternModule {
   constructor({
     id,
@@ -313,6 +361,8 @@ export class PatternModule {
     status = "draft",
     tags = [],
     hidden = false,
+    fitRisk = null,
+    compatibleDraftVersions = [],
   } = {}) {
     const descriptor = {
       id,
@@ -325,6 +375,8 @@ export class PatternModule {
       status,
       tags,
       hidden,
+      fitRisk,
+      compatibleDraftVersions,
     };
     validatePatternModuleDescriptor(descriptor);
 
@@ -338,6 +390,8 @@ export class PatternModule {
     this.status = status;
     this.tags = cloneAndFreeze(tags);
     this.hidden = hidden;
+    this.fitRisk = cloneAndFreeze(fitRisk);
+    this.compatibleDraftVersions = cloneAndFreeze(compatibleDraftVersions);
     Object.freeze(this);
   }
 }
