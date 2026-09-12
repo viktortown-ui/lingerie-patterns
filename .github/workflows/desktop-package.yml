@@ -60,8 +60,30 @@ jobs:
           }
           $assetPaths = @($assets.FullName)
 
-          & gh release view $tag --repo $repository 2>$null
-          if ($LASTEXITCODE -ne 0) {
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'LEKALO-release-workflow'
+          }
+          $encodedTag = [Uri]::EscapeDataString($tag)
+          $releaseExists = $false
+          try {
+            Invoke-RestMethod `
+              -Uri "https://api.github.com/repos/$repository/releases/tags/$encodedTag" `
+              -Headers $headers `
+              -Method Get `
+              -ErrorAction Stop | Out-Null
+            $releaseExists = $true
+          }
+          catch {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+            if ($statusCode -ne 404) {
+              throw
+            }
+          }
+
+          if (-not $releaseExists) {
             & gh release create $tag --repo $repository --verify-tag --prerelease --generate-notes --title "ЛЕКАЛО $tag"
             if ($LASTEXITCODE -ne 0) {
               throw "Could not create GitHub Release $tag."

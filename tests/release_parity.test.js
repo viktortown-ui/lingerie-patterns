@@ -108,6 +108,8 @@ test("tagged Windows releases enforce version identity and immutable assets", ()
   const workflow = read(".github/workflows/desktop-package.yml");
   assert.match(workflow, /\$expectedTag = "v\$version"/u);
   assert.match(workflow, /\$env:GITHUB_REF_NAME -ne \$expectedTag/u);
+  assert.match(workflow, /Invoke-RestMethod[\s\S]*releases\/tags\/\$encodedTag/u);
   assert.match(workflow, /gh release create \$tag[\s\S]*--verify-tag/u);
+  assert.doesNotMatch(workflow, /gh release view/u);
   assert.doesNotMatch(workflow, /--clobber/u);
 });
