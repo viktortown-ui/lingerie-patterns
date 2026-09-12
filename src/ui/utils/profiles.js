@@ -48,9 +48,11 @@ export function prepareImportedProfiles(incoming, existingProfiles = [], createI
     && profile.name.trim()
     && (profile.id == null || typeof profile.id === "string")
     && (profile.moduleId == null || typeof profile.moduleId === "string")
+    && (profile.schemaVersion == null || typeof profile.schemaVersion === "string" || typeof profile.schemaVersion === "number")
     && optionalRecord(profile.measurements)
     && optionalRecord(profile.options)
     && optionalRecord(profile.adjustments)
+    && optionalRecord(profile.measurementVerification)
   );
   if (!incoming.every(isValid)) throw new Error("Invalid profile backup");
 

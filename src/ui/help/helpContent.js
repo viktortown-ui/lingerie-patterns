@@ -1,4 +1,4 @@
-export const HELP_CONTENT_VERSION = 1;
+export const HELP_CONTENT_VERSION = 2;
 
 export const HELP_TOPIC_IDS = Object.freeze([
   "quick-start",
@@ -26,7 +26,7 @@ const topics = [
       steps: [
         "В Windows дважды щёлкните ярлык «ЛЕКАЛО» или LEKALO.exe; на телефоне и планшете откройте веб-версию либо установленную PWA.",
         "На главной выберите подходящую основу и нажмите «Создать выкройку».",
-        "Введите мерки в сантиметрах. Красное сообщение нужно исправить, предупреждение — внимательно перепроверить.",
+        "Введите мерки в сантиметрах, затем раскройте «Проверку мерок» и повторите их без подсматривания в первое значение.",
         "Укажите растяжимость ткани и резинки, затем выберите фасон и обработку краёв.",
         "При необходимости скорректируйте форму управляемыми точками A/B/C и проверьте линии на чертеже.",
         "Скачайте PDF, сначала распечатайте контрольную страницу при масштабе 100% и измерьте тестовые квадраты.",
@@ -48,7 +48,7 @@ const topics = [
       steps: [
         "On Windows, double-click the LEKALO shortcut or LEKALO.exe; on a phone or tablet, open the web app or installed PWA.",
         "Choose a base on the home screen and select Create pattern.",
-        "Enter measurements in centimetres. Fix errors and carefully recheck warnings.",
+        "Enter measurements in centimetres, then open Measurement check and repeat them without looking at the first value.",
         "Enter fabric and elastic stretch, then choose style and edge construction.",
         "If needed, refine the shape with guided A/B/C controls and inspect the drawing.",
         "Download PDF, print the calibration page at 100%, and measure the test squares.",
@@ -67,8 +67,8 @@ const topics = [
   {
     id: "measurements",
     keywords: {
-      ru: "мерки снять сантиметр талия бедра грудь ткань растяжимость резинка",
-      en: "measure measurements waist hip bust fabric stretch elastic",
+      ru: "мерки снять повтор повторный помощник сантиметр талия бедра грудь ткань растяжимость резинка",
+      en: "measure measurements repeat helper waist hip bust fabric stretch elastic",
     },
     ru: {
       title: "Мерки и растяжимость",
@@ -78,6 +78,8 @@ const topics = [
         "Для низа завяжите тонкую ленту на естественной талии и не перемещайте её до окончания всех вертикалей и дуг.",
         "Для верха используйте одну и ту же точку основания шеи; обхват под грудью снимайте плотно на спокойном выдохе.",
         "Каждую непривычную мерку прочитайте в подсказке непосредственно под полем.",
+        "Не глядя на первое число, снимите все мерки ещё раз. Укажите, измеряли вы себя сами или помогал другой человек.",
+        "Если разница больше допуска рядом с полем, не усредняйте числа: снимите обе мерки заново. До совпадения физический экспорт заблокирован.",
         "Для ткани отметьте 10 см поперёк долевой, растяните без повреждения и внесите полученную длину в калькулятор.",
         "Рабочая растяжимость должна быть ниже предельной; отдельно оцените восстановление ткани после растяжения.",
       ],
@@ -96,6 +98,8 @@ const topics = [
         "For lower-body patterns, tie a narrow tape at the natural waist and keep it fixed while taking verticals and arcs.",
         "For upper-body patterns, use the same neck-base point; measure underbust firmly on a relaxed exhale.",
         "Read the helper text under every unfamiliar field.",
+        "Without looking at the first number, take every measurement again and record whether you measured yourself or used a helper.",
+        "If a difference exceeds the tolerance shown beside the field, do not average it; retake both values. Physical export stays locked until they match.",
         "Mark 10 cm across the grain, stretch without damage, and enter the stretched length in the calculator.",
         "Working stretch must remain below maximum stretch; assess recovery separately.",
       ],
@@ -116,7 +120,7 @@ const topics = [
     ru: {
       title: "Фасон и точки A/B/C",
       summary: "Безопасное изменение посадки и линий без ручного ввода формул.",
-      intro: "Карточки фасона меняют конструктивные варианты, а A/B/C — ограниченные параметры отдельных линий. После каждого изменения лекало строится заново и снова проходит проверки.",
+      intro: "Карточки фасона меняют конструктивные варианты, а A/B/C — ограниченные параметры отдельных линий. Сейчас A/B/C доступны у нижних основ; бралетт и топ остаются экспериментальными и не скрывают отсутствия таких корректоров.",
       steps: [
         "Сначала выберите посадку, покрытие, линию ноги, ластовицу и способ обработки.",
         "Нажмите «Точки A/B/C» над чертежом, чтобы показать управляемые маркеры.",
@@ -127,6 +131,7 @@ const topics = [
       bullets: [
         "A1/A2 управляют передом, B1/B2 — спинкой, C1 — согласованной высотой бокового шва низа.",
         "Это понятные ограниченные поправки, а не свободное перемещение любой точки как в полном САПР.",
+        "У бралетта и топа A/B/C пока нет: если нужна коррекция линии, фиксируйте её после макета; перенос в параметрический корректор требует отдельной проверенной формулы.",
       ],
       warningTitle: "Не растягивайте пределы",
       warning: "Если нужной формы нет в разрешённом диапазоне, требуется новый фасон или новый параметрический модуль, а не обход ограничения.",
@@ -134,7 +139,7 @@ const topics = [
     en: {
       title: "Style and A/B/C controls",
       summary: "Guided fit and line changes without exposing formulas.",
-      intro: "Style cards change construction choices. A/B/C controls make bounded line adjustments. The pattern is redrafted and revalidated after every change.",
+      intro: "Style cards change construction choices. A/B/C controls make bounded line adjustments. They currently exist for lower-body bases; the bralette and top remain experimental and do not conceal the lack of shape correctors.",
       steps: [
         "Choose rise, coverage, leg line, gusset, and edge construction first.",
         "Select A/B/C points above the drawing to reveal guided handles.",
@@ -145,6 +150,7 @@ const topics = [
       bullets: [
         "A1/A2 control the front, B1/B2 the back, and C1 the coordinated lower-body side seam height.",
         "These are bounded understandable controls, not unrestricted CAD point editing.",
+        "The bralette and top do not yet have A/B/C controls. Record toile corrections; converting them into guided controls requires a separate validated formula.",
       ],
       warningTitle: "Respect the bounds",
       warning: "If the needed shape is outside the allowed range, create a new style or drafting module instead of bypassing the limit.",
@@ -161,15 +167,17 @@ const topics = [
       summary: "Чем отличаются профиль, фасон, проект и резервная копия.",
       intro: "Приложение хранит рабочий черновик автоматически, но разные файлы решают разные задачи.",
       steps: [
-        "«Сохранить текущий» создаёт профиль конкретного человека: мерки, опции и поправки.",
+        "«Сохранить текущий» создаёт профиль конкретного человека: мерки, их повторную проверку, опции и поправки.",
         "«Сохранить фасон» сохраняет только внешний вид и обработку без личных мерок.",
         "«Проект JSON» сохраняет текущую модель вместе с мерками и настройками — не публикуйте его без согласия человека.",
         "«Резервная копия» выгружает все профили для восстановления или переноса.",
+        "Чужая или будущая версия файла профилей отклоняется целиком; проекты новых форматов обязаны явно указывать версию модуля.",
+        "После импорта профиля или проекта повторите мерки на этом устройстве: редактируемый JSON не переносит разрешение на физический экспорт.",
         "Перед очисткой данных браузера скачайте проекты, профили и нужные личные SVG.",
       ],
       bullets: [
         "Windows-программа и сайт используют отдельные локальные хранилища и не синхронизируются автоматически.",
-        "Сохранённый фасон применяется только к той же основе и совместимой версии модуля.",
+        "Сохранённый фасон применяется только к той же основе и текущей или явно объявленной совместимой версии модуля.",
       ],
       warningTitle: "Личные данные",
       warning: "Файл проекта содержит мерки тела. Перед отправкой другому человеку проверьте, что вы действительно хотите ими поделиться.",
@@ -179,15 +187,17 @@ const topics = [
       summary: "Profiles, styles, projects, and backups serve different purposes.",
       intro: "The working draft is saved automatically, while each export format has a distinct purpose.",
       steps: [
-        "Save current creates a person's profile with measurements, options, and adjustments.",
+        "Save current creates a person's profile with measurements, repeat-check record, options, and adjustments.",
         "Save style stores appearance and construction choices without body measurements.",
         "Project JSON stores the current model, measurements, and settings; do not publish it without consent.",
         "Backup exports all profiles for recovery or transfer.",
+        "Unknown or future profile-backup versions are rejected atomically; newer project containers must explicitly identify their module version.",
+        "After importing a profile or project, repeat the measurements on this device; editable JSON never transfers physical-export permission.",
         "Before clearing browser data, export projects, profiles, and personal SVG files you need.",
       ],
       bullets: [
         "The Windows app and website use separate local storage and do not sync automatically.",
-        "A style applies only to the same base and a compatible module version.",
+        "A style applies only to the same base and the current or an explicitly declared compatible module version.",
       ],
       warningTitle: "Personal data",
       warning: "A project file contains body measurements. Confirm that you intend to share them before sending it to anyone.",
@@ -288,7 +298,7 @@ const topics = [
     ru: {
       title: "Экспорт и печать",
       summary: "Как получить файл правильного размера и не испортить масштаб.",
-      intro: "PDF предназначен для печати, SVG — для векторной доработки, DXF — для обмена с CAD. Проект JSON сохраняет исходные параметры, а не только линии.",
+      intro: "PDF предназначен для печати, SVG — для векторной доработки, DXF — для обмена с CAD. Перед физическим экспортом приложение требует совпавший повторный замер. Проект JSON можно сохранить раньше: он хранит исходные параметры, а не только линии.",
       steps: [
         "Выберите формат бумаги A4, A3, Letter или A0 перед созданием PDF.",
         "Распечатайте только контрольную страницу с настройкой 100% / Actual size.",
@@ -296,6 +306,7 @@ const topics = [
         "Измерьте квадраты 50 × 50 и 100 × 100 мм; продолжайте только при точном совпадении.",
         "Соберите листы по координатам R1C1, R1C2 и совмещайте повторяющуюся зону нахлёста 10 мм.",
         "Перед производством откройте DXF обратно в целевой CAD и проверьте миллиметры, слои, замкнутость и контрольный размер.",
+        "У экспериментальной основы подтвердите режим «только для макета». Её SVG, PDF, DXF и имена файлов получают неснимаемую отметку о непроверенной посадке.",
       ],
       bullets: [
         "DXF использует слои CUT, SEAM, NOTCH, GRAIN и TEXT и проходит внутреннее повторное чтение.",
@@ -307,7 +318,7 @@ const topics = [
     en: {
       title: "Export and printing",
       summary: "Produce a correctly scaled file without printer distortion.",
-      intro: "PDF is for printing, SVG for vector editing, and DXF for CAD exchange. Project JSON preserves inputs, not just lines.",
+      intro: "PDF is for printing, SVG for vector editing, and DXF for CAD exchange. Physical export requires a matching repeat measurement. Project JSON can be saved earlier because it preserves inputs rather than only lines.",
       steps: [
         "Choose A4, A3, Letter, or A0 before generating PDF.",
         "Print only the calibration page at 100% or Actual size.",
@@ -315,6 +326,7 @@ const topics = [
         "Measure the 50 × 50 and 100 × 100 mm squares; continue only when they match exactly.",
         "Assemble sheets by R1C1 and R1C2 coordinates, aligning the repeated 10 mm overlap.",
         "Before production, reopen DXF in the target CAD and verify millimetres, layers, closed geometry, and a known dimension.",
+        "For an experimental base, acknowledge toile-only use. Its SVG, PDF, DXF, and filenames receive a permanent unverified-fit warning.",
       ],
       bullets: [
         "DXF uses CUT, SEAM, NOTCH, GRAIN, and TEXT layers and passes an internal round-trip parse.",
@@ -343,6 +355,7 @@ const topics = [
       ],
       bullets: [
         "Изменение базы, фасона, A/B/C или правил делает предыдущий ряд неактуальным.",
+        "Повторно проверены только мерки базы. Вычисленные размеры не получают ложную отметку проверки; это записано в manifest.",
         "Это градация по правилам мерок, но пока не промышленная поточечная градация конструктивных точек.",
       ],
       warningTitle: "Проверьте каждый размер",
@@ -361,6 +374,7 @@ const topics = [
       ],
       bullets: [
         "Changing the base, style, A/B/C, or rules invalidates the previous set.",
+        "Only the base measurements were repeated. Derived sizes never inherit a false verification claim; the manifest records this scope.",
         "This is measurement-rule grading, not industrial construction-point grading.",
       ],
       warningTitle: "Validate every size",
@@ -375,8 +389,8 @@ const topics = [
     },
     ru: {
       title: "Примерка, статусы и приватность",
-      summary: "Что приложение действительно проверяет и где заканчивается автоматическая уверенность.",
-      intro: "Статус показывает степень проверки основы. «Готово к пробному образцу» не означает готовность к массовому производству, а «Экспериментальная» требует особенно осторожной примерки.",
+      summary: "Что приложение действительно проверяет, что значит риск посадки и где заканчивается автоматическая уверенность.",
+      intro: "Статус показывает зрелость основы, а уровень риска — чувствительность модели к меркам, ткани и особенностям фигуры. «Основа для макета» не означает готовность к массовому производству; «Экспериментальная» требует особенно осторожной примерки.",
       steps: [
         "Проверьте контрольный размер печати или CAD-файла.",
         "Сшейте первый макет из недорогого материала с максимально похожей растяжимостью и восстановлением.",
@@ -386,6 +400,8 @@ const topics = [
       ],
       bullets: [
         "Бралетт и топ остаются экспериментальными до расширенной физической проверки.",
+        "Повторный замер выявляет случайную ошибку ввода, но не подтверждает технику снятия мерок и не гарантирует посадку.",
+        "Ни одной основе пока не присвоен низкий риск: для этого нужна документированная серия реальных примерок.",
         "Приложение работает локально; веб и Windows хранят данные раздельно. Для резервной копии используйте экспортированные файлы.",
       ],
       warningTitle: "Честная граница",
@@ -393,8 +409,8 @@ const topics = [
     },
     en: {
       title: "Fitting, status, and privacy",
-      summary: "What the app verifies and where automated confidence ends.",
-      intro: "Status communicates validation maturity. Ready for a toile does not mean mass-production ready, while Experimental requires extra fitting care.",
+      summary: "What the app verifies, what fit risk means, and where automated confidence ends.",
+      intro: "Status communicates validation maturity; fit risk describes sensitivity to measurement, fabric, and body variation. Toile-ready never means mass-production ready, while Experimental requires extra fitting care.",
       steps: [
         "Verify a known dimension on the print or CAD file.",
         "Sew the first toile in inexpensive material with closely matching stretch and recovery.",
@@ -404,6 +420,8 @@ const topics = [
       ],
       bullets: [
         "Bralette and crop-top bases remain experimental until broader physical validation.",
+        "A repeat measurement catches accidental entry error but does not validate measurement technique or guarantee fit.",
+        "No base is labelled low risk yet; that requires a documented series of physical fittings.",
         "The app works locally; web and Windows storage are separate. Use exported files for backup.",
       ],
       warningTitle: "Honest boundary",

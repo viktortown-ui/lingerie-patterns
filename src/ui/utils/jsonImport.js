@@ -61,6 +61,24 @@ export function assertProfileCount(profiles, maxProfiles = MAX_PROFILE_COUNT) {
   return profiles;
 }
 
+export function profileListFromBackup(value) {
+  // The bare array is the only supported legacy representation. Once a
+  // wrapper exists, its identity and version must be explicit and exact.
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "object") {
+    throw new JsonImportError("invalid-profile-list", "The profile backup must be an array or a supported wrapper.");
+  }
+  if (value.format !== "lekalo-profiles") {
+    throw new JsonImportError("unsupported-profile-format", "The profile backup format is not supported.");
+  }
+  if (value.version !== 1) {
+    throw new JsonImportError("unsupported-profile-version", "The profile backup version is not supported.", {
+      version: value.version,
+    });
+  }
+  return assertProfileCount(value.profiles);
+}
+
 export function jsonImportErrorMessage(error, language = "ru", context = "project") {
   const russian = language === "ru";
   if (error?.code === "file-too-large") {
@@ -82,6 +100,16 @@ export function jsonImportErrorMessage(error, language = "ru", context = "projec
     return russian
       ? "Файл профилей имеет неверную структуру."
       : "The profile file has an invalid structure.";
+  }
+  if (error?.code === "unsupported-profile-format") {
+    return russian
+      ? "Это не резервная копия профилей ЛЕКАЛО."
+      : "This is not a LEKALO profile backup.";
+  }
+  if (error?.code === "unsupported-profile-version") {
+    return russian
+      ? `Версия резервной копии профилей ${String(error.version)} не поддерживается.`
+      : `Profile backup version ${String(error.version)} is not supported.`;
   }
   if (error?.code === "invalid-file" || error?.code === "read-failed") {
     return russian ? "Не удалось прочитать выбранный файл." : "Could not read the selected file.";

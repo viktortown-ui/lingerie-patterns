@@ -99,6 +99,92 @@ test("draft persistence preserves a bounded module version", async () => {
   });
 });
 
+test("an explicitly invalid local module version cannot become versionless legacy data", async () => {
+  for (const [label, moduleVersion] of [["numeric", 999], ["empty", ""], ["oversized", "x".repeat(65)]]) {
+    await withStorage({
+      getItem() {
+        return JSON.stringify({
+          draft: {
+            moduleId: "bralette_soft",
+            moduleVersion,
+            measurements: { bust: 100 },
+          },
+        });
+      },
+      setItem() {},
+    }, async () => {
+      const store = await freshStore(`invalid-module-version-${label}`);
+      assert.equal(store.loadState().draft.moduleVersion, "invalid-local-version");
+    });
+  }
+});
+
+test("an explicitly invalid local profile schema version cannot become legacy verification", async () => {
+  for (const [label, schemaVersion] of [["boolean", false], ["object", {}], ["empty", ""], ["oversized", "x".repeat(65)]]) {
+    await withStorage({
+      getItem() {
+        return JSON.stringify({
+          profiles: [{
+            id: `invalid-profile-${label}`,
+            name: "Invalid profile version",
+            moduleId: "bralette_soft",
+            schemaVersion,
+            measurements: { bust: 100 },
+            measurementVerification: { method: "helper", repeated: { bust: 100 } },
+          }],
+        });
+      },
+      setItem() {},
+    }, async () => {
+      const store = await freshStore(`invalid-profile-version-${label}`);
+      assert.equal(store.loadState().profiles[0].schemaVersion, "invalid-local-version");
+    });
+  }
+});
+
+test("drafts and profiles preserve only sanitized repeat-measurement records", async () => {
+  await withStorage({
+    getItem() {
+      return JSON.stringify({
+        profiles: [{
+          id: "repeat-profile",
+          name: "Repeat profile",
+          moduleId: "bralette_soft",
+          measurementVerification: {
+            method: "helper",
+            repeated: { bust: "92", underbust: true, bad: -1 },
+            injected: "discard",
+          },
+        }],
+        draft: {
+          moduleId: "bralette_soft",
+          moduleVersion: "0.3.0",
+          measurements: {},
+          options: {},
+          adjustments: {},
+          measurementVerification: {
+            method: "self",
+            repeated: { bust: "92.5", underbust: false },
+            injected: "discard",
+          },
+        },
+      });
+    },
+    setItem() {},
+  }, async () => {
+    const store = await freshStore("repeat-records");
+    const state = store.loadState();
+    assert.deepEqual(state.draft.measurementVerification, {
+      method: "self",
+      repeated: { bust: 92.5 },
+    });
+    assert.deepEqual(state.profiles[0].measurementVerification, {
+      method: "helper",
+      repeated: { bust: 92 },
+    });
+  });
+});
+
 test("legacy drafts receive safe preview defaults", async () => {
   await withStorage({
     getItem() {

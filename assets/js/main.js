@@ -1,4 +1,5 @@
 import { getModule, getModules, registerModule } from "../../src/core/pattern/registry.js";
+import { moduleAcceptsDraftVersion } from "../../src/core/pattern/PatternModule.js";
 import { APP_VERSION } from "../../src/core/app/version.js";
 import {
   BUILT_IN_UNDERWEAR_TEMPLATES,
@@ -317,13 +318,17 @@ function applyTemplate(template) {
     const settings = resolveTemplateSettings(template, module);
     const candidate = state.draftsByModule?.[template.moduleId]
       || (state.draft?.moduleId === template.moduleId ? state.draft : null);
-    const stored = candidate && (!candidate.moduleVersion || candidate.moduleVersion === module.version)
+    const stored = candidate && moduleAcceptsDraftVersion(module, candidate.moduleVersion)
       ? candidate
       : null;
     const nextDraft = {
       moduleId: template.moduleId,
       moduleVersion: module.version,
-      measurements: stored?.measurements || null,
+      measurements: stored
+        ? Object.fromEntries(module.schema.fields
+            .filter((field) => Object.hasOwn(stored.measurements || {}, field.key))
+            .map((field) => [field.key, stored.measurements[field.key]]))
+        : null,
       options: settings.options,
       adjustments: settings.adjustments,
       paperSize: stored?.paperSize || state.paperSize || "A4",

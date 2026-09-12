@@ -31,7 +31,7 @@ export const upperBodySections = [
     id: "measurements",
     step: 1,
     title: { ru: "Мерки верха", en: "Upper-body measurements" },
-    short: { ru: "11 мерок", en: "11 measurements" },
+    short: { ru: "Точные мерки", en: "Exact measurements" },
     description: {
       ru: "Снимайте мерки поверх тонкого белья. Горизонтали держите параллельно полу, а длины измеряйте от основания шеи.",
       en: "Measure over light underwear. Keep circumferences level and take vertical lengths from the neck base.",

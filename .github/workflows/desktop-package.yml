@@ -7,7 +7,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -22,11 +22,22 @@ jobs:
         with:
           node-version: 24
 
+      - name: Verify release tag matches the application version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: powershell
+        run: |
+          $version = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
+          $expectedTag = "v$version"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag '$env:GITHUB_REF_NAME' must equal '$expectedTag'."
+          }
+
       - name: Build verified portable package
         shell: powershell
         run: .\desktop\Build-Desktop.ps1
 
-      - name: Upload portable package
+      - name: Upload portable package as a workflow artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: LEKALO-Pattern-Studio-win-x64
@@ -34,3 +45,30 @@ jobs:
             dist-desktop/*.zip
             dist-desktop/*.zip.sha256
           if-no-files-found: error
+
+      - name: Attach portable package to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $repository = '${{ github.repository }}'
+          $assets = @(Get-ChildItem -Path 'dist-desktop\*.zip', 'dist-desktop\*.zip.sha256' -File)
+          if ($assets.Count -ne 2) {
+            throw "Expected one ZIP and one SHA-256 file, found $($assets.Count)."
+          }
+          $assetPaths = @($assets.FullName)
+
+          & gh release view $tag --repo $repository 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            & gh release create $tag --repo $repository --verify-tag --prerelease --generate-notes --title "ЛЕКАЛО $tag"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not create GitHub Release $tag."
+            }
+          }
+
+          & gh release upload $tag @assetPaths --repo $repository
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not attach the portable package to GitHub Release $tag."
+          }

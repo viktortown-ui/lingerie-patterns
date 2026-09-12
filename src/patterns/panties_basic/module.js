@@ -12,6 +12,13 @@ const module = new PatternModule({
     en: "High, mid, and low rise with three leg lines and three coverage options.",
   },
   status: "ready-for-toile",
+  fitRisk: {
+    level: "moderate",
+    reason: {
+      ru: "Эластичный материал допускает небольшую погрешность, но обхваты, дуга сидения и растяжимость всё равно требуют проверки на пробном образце.",
+      en: "Stretch fabric tolerates small variation, but circumferences, crotch arc, and stretch still require a toile check.",
+    },
+  },
   tags: ["7 мерок", "растяжимость", "A4 / A3 / Letter"],
   schema,
   draft: draftPanties,

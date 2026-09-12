@@ -3,7 +3,7 @@
 // while still offering an offline fallback.
 //
 // IMPORTANT: bump BUILD when you deploy a new release.
-const BUILD = "v22";
+const BUILD = "v23";
 const CACHE_NAME = `lingerie-patterns-${BUILD}`;
 const NETWORK_TIMEOUT_MS = Number.isSafeInteger(self.__LEKALO_QA_NETWORK_TIMEOUT_MS)
   && self.__LEKALO_QA_NETWORK_TIMEOUT_MS > 0
@@ -19,6 +19,7 @@ const CORE = [
   "./src/core/app/version.js",
   "./src/core/export/dxfExport.js",
   "./src/core/export/dxfParser.js",
+  "./src/core/export/exportSafety.js",
   "./src/core/export/pdfExport.js",
   "./src/core/export/pathValidation.js",
   "./src/core/export/storedZip.js",
@@ -46,6 +47,7 @@ const CORE = [
   "./src/core/utils/id.js",
   "./src/core/utils/math.js",
   "./src/core/validate/constraints.js",
+  "./src/core/validate/measurementVerification.js",
   "./src/core/validate/validate.js",
   "./src/patterns/bralette_soft/draft.js",
   "./src/patterns/bralette_soft/module.js",
@@ -65,10 +67,12 @@ const CORE = [
   "./src/patterns/shared/upperBodyDraft.js",
   "./src/patterns/shared/upperBodySchema.js",
   "./src/ui/components/Form.js",
+  "./src/ui/components/ExportSafetyDialog.js",
   "./src/ui/components/GradingPanel.js",
   "./src/ui/components/HelpButton.js",
   "./src/ui/components/HelpCenter.js",
   "./src/ui/components/LibraryHub.js",
+  "./src/ui/components/MeasurementVerification.js",
   "./src/ui/components/PatternAdjuster.js",
   "./src/ui/components/Preview.js",
   "./src/ui/components/StaticImportDialog.js",

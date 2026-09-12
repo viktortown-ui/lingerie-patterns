@@ -24,3 +24,17 @@ jobs:
 
       - name: Run deterministic checks
         run: npm run check
+
+  windows-package-smoke:
+    name: Windows package smoke
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and smoke-test the portable package
+        shell: powershell
+        run: .\desktop\Build-Desktop.ps1 -Clean -SkipTests

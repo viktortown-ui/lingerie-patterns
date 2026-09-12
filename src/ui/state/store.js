@@ -1,8 +1,11 @@
+import { sanitizeMeasurementVerification } from "../../core/validate/measurementVerification.js";
+
 const STORAGE_KEY = "lingerie-pattern-state";
 const LEGACY_PROFILE_MODULE_ID = "panties_basic";
 const PAPER_SIZES = new Set(["A4", "A3", "LETTER", "A0"]);
 const LANGUAGES = new Set(["ru", "en"]);
 const THEMES = new Set(["light", "dark"]);
+const INVALID_MODULE_VERSION = "invalid-local-version";
 const subscribers = new Set();
 let currentState = null;
 let generatedProfileCounter = 0;
@@ -31,6 +34,18 @@ function normalizeValueRecord(raw) {
   return result;
 }
 
+function normalizeMeasurementVerification(raw) {
+  const normalized = sanitizeMeasurementVerification(raw);
+  return normalized.method || Object.keys(normalized.repeated).length ? normalized : null;
+}
+
+function normalizeModuleVersion(value) {
+  if (value == null) return null;
+  return typeof value === "string" && value.length > 0 && value.length <= 64
+    ? value
+    : INVALID_MODULE_VERSION;
+}
+
 function createProfileId() {
   const randomId = globalThis.crypto?.randomUUID?.();
   if (randomId) return `profile-${randomId}`;
@@ -56,16 +71,18 @@ function normalizeProfiles(rawProfiles) {
         name: profile.name.trim().slice(0, 200),
         moduleId,
       };
-      if (typeof profile.schemaVersion === "string" || typeof profile.schemaVersion === "number") {
-        normalized.schemaVersion = String(profile.schemaVersion).slice(0, 64);
+      if (profile.schemaVersion != null) {
+        normalized.schemaVersion = normalizeModuleVersion(profile.schemaVersion);
       }
       if (typeof profile.updatedAt === "string") normalized.updatedAt = profile.updatedAt.slice(0, 64);
       const measurements = normalizeValueRecord(profile.measurements);
       const options = normalizeValueRecord(profile.options);
       const adjustments = normalizeValueRecord(profile.adjustments);
+      const measurementVerification = normalizeMeasurementVerification(profile.measurementVerification);
       if (measurements) normalized.measurements = measurements;
       if (options) normalized.options = options;
       if (adjustments) normalized.adjustments = adjustments;
+      if (measurementVerification) normalized.measurementVerification = measurementVerification;
       return normalized;
     });
 }
@@ -122,15 +139,14 @@ function normalizeDraft(raw) {
   const defaultPreview = { scaleLabels: true, seamHighlight: false, editPoints: false };
   const preview = isPlainRecord(raw.preview) ? raw.preview : null;
   const requestedModuleId = typeof raw.moduleId === "string" ? raw.moduleId.trim() : "";
+  const measurementVerification = normalizeMeasurementVerification(raw.measurementVerification);
   return {
     moduleId: safeRecordKey(requestedModuleId) ? requestedModuleId : null,
-    moduleVersion:
-      typeof raw.moduleVersion === "string" && raw.moduleVersion.length <= 64
-        ? raw.moduleVersion
-        : null,
+    moduleVersion: normalizeModuleVersion(raw.moduleVersion),
     measurements: normalizeValueRecord(raw.measurements),
     options: normalizeValueRecord(raw.options),
     adjustments: normalizeValueRecord(raw.adjustments),
+    ...(measurementVerification ? { measurementVerification } : {}),
     paperSize: PAPER_SIZES.has(raw.paperSize) ? raw.paperSize : null,
     preview: preview
       ? {

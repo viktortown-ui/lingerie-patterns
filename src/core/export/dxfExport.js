@@ -1,5 +1,6 @@
 import { collectPaths } from "../pattern/panels.js";
 import { parseAsciiDxf } from "./dxfParser.js";
+import { qualifyExportFilename, resolveExportSafety } from "./exportSafety.js";
 
 const UNIT_INFO = Object.freeze({
   in: { mm: 25.4, insUnits: 1, measurement: 0 },
@@ -354,7 +355,7 @@ function addText(lines, point, height, text, metadata = []) {
   if (metadata.length) addXdata(lines, metadata);
 }
 
-function addHeader(lines, outputUnit, bounds, profile) {
+function addHeader(lines, outputUnit, bounds, profile, safety) {
   pair(lines, 0, "SECTION");
   pair(lines, 2, "HEADER");
   pair(lines, 9, "$ACADVER");
@@ -378,6 +379,13 @@ function addHeader(lines, outputUnit, bounds, profile) {
   pair(lines, 999, toDxfAscii(`LEKALO_PROFILE=${profile}`));
   pair(lines, 999, "AAMA_ASTM_CERTIFIED=NO");
   pair(lines, 999, "EXTERNAL_CAD_ROUND_TRIP=NOT_TESTED");
+  if (safety?.experimental) {
+    pair(lines, 999, `FIT_STATUS=${safety.status}`);
+    pair(lines, 999, `EXPORT_WARNING_CODE=${safety.code}`);
+    pair(lines, 999, `USAGE=${safety.usage}`);
+    pair(lines, 999, "PRODUCTION_VERIFIED=NO");
+    pair(lines, 999, safety.warning);
+  }
   pair(lines, 0, "ENDSEC");
 }
 
@@ -519,6 +527,7 @@ function quantizePolyline(points, label) {
  */
 export function buildDxfExport(draft, options = {}) {
   const validated = validateDraftForDxf(draft, options);
+  const safety = resolveExportSafety({ draft, module: options.module, moduleStatus: options.moduleStatus });
   const normalizeOrigin = options.normalizeOrigin !== false;
   const transform = transformFactory(validated.bounds, validated.scale, normalizeOrigin);
   const exportEntries = validated.flattened.map((entry, index) => ({
@@ -529,7 +538,7 @@ export function buildDxfExport(draft, options = {}) {
   const resolveText = options.resolveText;
   const profile = options.semanticProfile || DXF_SEMANTIC_PROFILE;
   const lines = [];
-  addHeader(lines, validated.outputUnit, bounds, profile);
+  addHeader(lines, validated.outputUnit, bounds, profile, safety);
   addTables(lines);
   addEmptyBlocks(lines);
   pair(lines, 0, "SECTION");
@@ -548,6 +557,12 @@ export function buildDxfExport(draft, options = {}) {
       ["MODULE_VERSION", draft.meta?.moduleVersion],
       ["SOURCE_UNIT", validated.sourceUnit],
       ["OUTPUT_UNIT", validated.outputUnit],
+      ...(safety.experimental ? [
+        ["FIT_STATUS", safety.status],
+        ["EXPORT_WARNING_CODE", safety.code],
+        ["USAGE", safety.usage],
+        ["PRODUCTION_VERIFIED", "NO"],
+      ] : []),
     ]);
     addPolyline(lines, entry.layer, entry.points, metadata);
   });
@@ -581,7 +596,8 @@ export function buildDxfExport(draft, options = {}) {
     }
   });
 
-  if (options.includePieceMetadataText !== false) {
+  let safetyWarningTextAdded = false;
+  if (options.includePieceMetadataText !== false || safety.experimental) {
     const textHeight = positive(
       options.metadataTextHeight ?? (validated.outputUnit === "mm" ? 2.5 : 0.25),
       "metadataTextHeight",
@@ -606,11 +622,36 @@ export function buildDxfExport(draft, options = {}) {
         panel.material ? `MATERIAL ${localized(panel.material, resolveText)}` : "",
         draft.meta?.moduleId ? `MODULE ${draft.meta.moduleId}@${draft.meta.moduleVersion || "0"}` : "",
       ].filter(Boolean);
-      addText(lines, point, textHeight, parts.join(" | "), [
-        `PIECE_ID=${panel.id || "piece"}`,
-        "TEXT_ROLE=PIECE_METADATA",
-      ]);
+      if (options.includePieceMetadataText !== false) {
+        addText(lines, point, textHeight, parts.join(" | "), [
+          `PIECE_ID=${panel.id || "piece"}`,
+          "TEXT_ROLE=PIECE_METADATA",
+        ]);
+      }
+      if (safety.experimental) {
+        const warningPoint = {
+          x: point.x,
+          y: Math.max(panelBounds.minY + textHeight, point.y - textHeight * 2),
+        };
+        addText(lines, warningPoint, textHeight, safety.warning, [
+          `PIECE_ID=${panel.id || "piece"}`,
+          "TEXT_ROLE=EXPORT_SAFETY_WARNING",
+          `EXPORT_WARNING_CODE=${safety.code}`,
+        ]);
+        safetyWarningTextAdded = true;
+      }
     });
+  }
+  if (safety.experimental && !safetyWarningTextAdded) {
+    const textHeight = positive(
+      options.metadataTextHeight ?? (validated.outputUnit === "mm" ? 2.5 : 0.25),
+      "metadataTextHeight",
+    );
+    addText(lines, { x: bounds.minX, y: bounds.minY + textHeight }, textHeight, safety.warning, [
+      "PIECE_ID=pattern",
+      "TEXT_ROLE=EXPORT_SAFETY_WARNING",
+      `EXPORT_WARNING_CODE=${safety.code}`,
+    ]);
   }
 
   pair(lines, 0, "ENDSEC");
@@ -624,7 +665,10 @@ export function buildDxfExport(draft, options = {}) {
 
   return {
     data,
-    fileName: `${String(draft.meta?.moduleId || "pattern").replace(/[^A-Za-z0-9._-]+/g, "-")}.dxf`,
+    fileName: qualifyExportFilename(
+      `${String(draft.meta?.moduleId || "pattern").replace(/[^A-Za-z0-9._-]+/g, "-")}.dxf`,
+      safety,
+    ),
     report: {
       format: "ASCII DXF",
       dxfVersion: "AC1009",
@@ -642,6 +686,11 @@ export function buildDxfExport(draft, options = {}) {
       aamaAstmCertified: false,
       industrialProductionQualified: false,
       skippedControls,
+      ...(safety.experimental ? {
+        fitStatus: safety.status,
+        usage: safety.usage,
+        exportWarningCode: safety.code,
+      } : {}),
     },
   };
 }

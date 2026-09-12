@@ -1,6 +1,7 @@
 import { createEl } from "../../core/utils/dom.js";
 import { validateSchema } from "../../core/validate/validate.js";
 import { getLocale, resolveText } from "../i18n/i18n.js";
+import { MeasurementVerification } from "./MeasurementVerification.js";
 
 const copy = (ru, en) => (getLocale() === "ru" ? ru : en);
 
@@ -9,8 +10,21 @@ function displayError(error) {
   return typeof error === "string" ? error : resolveText(error);
 }
 
-function measurementGuide(bodyRegion = "lower") {
+function measurementGuide(bodyRegion = "lower", schemaId = "") {
   const guide = createEl("div", { className: "measurement-guide" });
+  if (schemaId === "bralette_soft") {
+    guide.innerHTML = `
+    <div class="measurement-figure" aria-hidden="true">
+      <svg viewBox="0 0 220 290">
+        <path class="body-shape" d="M87 18c-12 8-16 23-13 39-18 14-31 33-35 59l26 18 10-20-7 146h84l-7-146 10 20 26-18c-4-26-17-45-35-59 3-16-1-31-13-39-13-9-33-9-46 0Z"/>
+        <path class="measure-line" d="M55 106c37 12 73 12 110 0M58 132c35 10 69 10 104 0"/>
+        <path class="measure-vertical" d="M110 42v63"/><path class="measure-arc" d="M85 102c17-8 33-8 50 0"/>
+        <text x="24" y="108">OG</text><text x="20" y="135">OPG</text><text x="116" y="78">VG</text><text x="91" y="99">CG</text>
+      </svg>
+    </div>
+    <div class="measurement-guide-copy"><strong>${copy("Только четыре работающие мерки", "Only four measurements used")}</strong><span>${copy("ОГ и ОПГ держите горизонтально; ВГ снимайте от основания шеи до центра груди; ЦГ — между центрами. Повторите каждую мерку ниже.", "Keep bust and underbust level; measure bust height from neck base to bust point and spacing between bust points. Repeat every value below.")}</span></div>`;
+    return guide;
+  }
   if (bodyRegion === "upper") {
     guide.innerHTML = `
     <div class="measurement-figure" aria-hidden="true">
@@ -79,7 +93,15 @@ function stretchCalculator(values, controls, emitChange) {
   return box;
 }
 
-export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
+export function Form({
+  schema,
+  values,
+  measurementVerification = {},
+  onMeasurementVerificationChange = () => {},
+  onChange,
+  onSubmit,
+  onStepChange,
+}) {
   const form = createEl("form", { className: "wizard-form" });
   const sections = schema.sections?.length ? schema.sections : [{ id: "measurements", title: { ru: "Параметры", en: "Parameters" }, description: "" }];
   const controls = new Map();
@@ -87,6 +109,12 @@ export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
   const stepButtons = [];
   let activeStep = 0;
   let currentErrors = validateSchema(schema, values);
+  const measurementCheck = MeasurementVerification({
+    schema,
+    measurements: values,
+    value: measurementVerification,
+    onChange: onMeasurementVerificationChange,
+  });
   const stepper = createEl("nav", { className: "wizard-stepper", attrs: { "aria-label": copy("Шаги построения", "Drafting steps") } });
 
   const setActiveStep = (nextIndex, { moveFocus = false } = {}) => {
@@ -125,13 +153,14 @@ export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
 
   const emitChange = () => {
     currentErrors = validateSchema(schema, values);
+    const verification = measurementCheck.refresh(values);
     controls.forEach((control, key) => {
       if (!control.error) return;
       control.error.textContent = displayError(currentErrors[key]?.[0]);
       control.wrapper?.classList.toggle("has-error", Boolean(currentErrors[key]?.length));
       control.input?.setAttribute("aria-invalid", currentErrors[key]?.length ? "true" : "false");
     });
-    onChange(values, currentErrors);
+    onChange(values, currentErrors, verification);
   };
 
   sections.forEach((section, sectionIndex) => {
@@ -143,7 +172,7 @@ export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
     const panelHeading = createEl("div", { className: "wizard-panel-heading" });
     panelHeading.append(createEl("div", { className: "eyebrow", text: `${copy("ШАГ", "STEP")} ${section.step || sectionIndex + 1}` }), createEl("h3", { text: resolveText(section.title), attrs: { id: panelHeadingId } }), createEl("p", { text: resolveText(section.description || "") }));
     panel.appendChild(panelHeading);
-    if (section.id === "measurements") panel.appendChild(measurementGuide(schema.bodyRegion));
+    if (section.id === "measurements") panel.appendChild(measurementGuide(schema.bodyRegion, schema.id));
 
     const fields = schema.fields.filter((field) => (field.section || "measurements") === section.id);
     if (fields.length) {
@@ -162,18 +191,28 @@ export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
         valueWrap.append(input, createEl("span", { text: schema.unit === "cm" ? "см" : schema.unit, attrs: { "aria-hidden": "true" } }));
         top.append(fieldLabel, valueWrap);
         const helper = createEl("div", { className: "field-helper", text: resolveText(field.description || ""), attrs: { id: helperId } });
+        const impact = field.impact
+          ? createEl("div", {
+              className: "field-impact",
+              text: `${copy("Влияет на: ", "Affects: ")}${resolveText(field.impact)}`,
+            })
+          : null;
         const error = createEl("div", { className: "field-error", attrs: { id: errorId, role: "alert", "aria-live": "polite" } });
         input.addEventListener("input", () => {
           const normalized = String(input.value).replace(",", ".");
           values[field.key] = normalized === "" ? "" : Number(normalized);
+          measurementCheck.invalidate(field.key, values);
           emitChange();
         });
         controls.set(field.key, { wrapper, input, error, setValue(value) { input.value = value ?? ""; } });
-        wrapper.append(top, helper, error);
+        wrapper.append(top, helper);
+        if (impact) wrapper.appendChild(impact);
+        wrapper.appendChild(error);
         fieldGrid.appendChild(wrapper);
       });
       panel.appendChild(fieldGrid);
     }
+    if (section.id === "measurements") panel.appendChild(measurementCheck.el);
 
     const options = (schema.options || []).filter((option) => (option.section || "style") === section.id);
     if (section.id === "fabric") panel.appendChild(stretchCalculator(values, controls, emitChange));
@@ -229,13 +268,27 @@ export function Form({ schema, values, onChange, onSubmit, onStepChange }) {
     form.appendChild(panel);
   });
 
-  const setValues = (nextValues) => { Object.assign(values, nextValues); controls.forEach((control, key) => control.setValue?.(values[key])); emitChange(); };
+  const setValues = (nextValues, { preserveMeasurementVerification = false } = {}) => {
+    const changedMeasurements = (schema.fields || [])
+      .filter((field) => !Object.is(values[field.key], nextValues?.[field.key]))
+      .map((field) => field.key);
+    Object.assign(values, nextValues);
+    if (!preserveMeasurementVerification) {
+      changedMeasurements.forEach((key) => measurementCheck.invalidate(key, values));
+    }
+    controls.forEach((control, key) => control.setValue?.(values[key]));
+    emitChange();
+  };
   form.addEventListener("submit", (event) => { event.preventDefault(); onSubmit?.(values); });
   setActiveStep(0);
   emitChange();
   return {
     el: form,
     setValues,
+    setMeasurementVerification: (nextValue) => measurementCheck.setValue(nextValue),
+    getMeasurementVerification: () => measurementCheck.getValue(),
+    getMeasurementVerificationEvaluation: () => measurementCheck.getEvaluation(),
+    revealMeasurementVerification: () => measurementCheck.reveal(),
     setStep: (nextIndex) => setActiveStep(nextIndex, { moveFocus: true }),
     getActiveStep: () => activeStep,
   };

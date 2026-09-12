@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { validateSchema } from "../src/core/validate/validate.js";
 import { svgExport } from "../src/core/export/svgExport.js";
+import { PATTERN_FIT_RISK_LEVELS } from "../src/core/pattern/PatternModule.js";
 import { modules } from "../src/patterns/index.js";
 
 const fixtureDir = join(process.cwd(), "tests", "fixtures");
@@ -15,6 +16,12 @@ function findFixture(schema) {
 }
 
 const pick = (source, keys) => Object.fromEntries(keys.map((key) => [key, source[key]]));
+const expectedFitRisk = {
+  panties_basic: "moderate",
+  panties_thong_basic: "moderate",
+  bralette_soft: "high",
+  crop_top_basic: "high",
+};
 
 modules.forEach((module) => {
   const { schema } = module;
@@ -24,6 +31,15 @@ modules.forEach((module) => {
   assert.ok(schema.unit);
   assert.ok(Array.isArray(schema.fields));
   assert.ok(schema.fields.length > 0);
+  assert.ok(PATTERN_FIT_RISK_LEVELS.includes(module.fitRisk?.level), `${module.id} missing fit-risk level`);
+  assert.equal(module.fitRisk.level, expectedFitRisk[module.id], `${module.id} has an unexpected fit-risk level`);
+  assert.ok(module.fitRisk.reason.ru.trim(), `${module.id} missing Russian fit-risk reason`);
+  assert.ok(module.fitRisk.reason.en.trim(), `${module.id} missing English fit-risk reason`);
+  assert.ok(Array.isArray(module.compatibleDraftVersions));
+  module.compatibleDraftVersions.forEach((version) => {
+    assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u);
+    assert.notEqual(version, module.version);
+  });
 
   schema.fields.forEach((field) => {
     assert.ok(field.key);
@@ -65,6 +81,7 @@ modules.forEach((module) => {
   assert.ok(draft.meta.unit);
   assert.ok(draft.meta.moduleId);
   assert.ok(draft.meta.moduleVersion);
+  assert.equal(draft.meta.moduleVersion, module.version);
 
   if (module.id.startsWith("panties_")) {
     assert.equal(schema.fields.length, 7, `${module.id} must use the seven-measurement contract`);

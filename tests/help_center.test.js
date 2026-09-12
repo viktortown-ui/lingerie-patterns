@@ -10,7 +10,7 @@ import {
 } from "../src/ui/help/helpContent.js";
 
 test("help content has a stable complete bilingual topic contract", () => {
-  assert.equal(HELP_CONTENT_VERSION, 1);
+  assert.equal(HELP_CONTENT_VERSION, 2);
   assert.equal(new Set(HELP_TOPIC_IDS).size, HELP_TOPIC_IDS.length);
   assert.deepEqual(
     HELP_TOPIC_IDS,

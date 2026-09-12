@@ -55,14 +55,33 @@ const styleOptions = [
 
 const options = [...upperFabricOptions, ...styleOptions, upperSeamAllowanceOption];
 
+const measurementKeys = new Set([
+  "bust",
+  "underbust",
+  "bustHeight",
+  "bustPointDistance",
+]);
+const fields = upperBodyFields.filter((field) => measurementKeys.has(field.key));
+const defaults = Object.fromEntries(fields.map((field) => [field.key, upperBodyDefaults[field.key]]));
+const sections = upperBodySections.map((section) => section.id === "measurements"
+  ? {
+      ...section,
+      short: { ru: "4 ключевые мерки", en: "4 core measurements" },
+      description: {
+        ru: "Для этой экспериментальной основы используются только четыре мерки, которые действительно меняют чашку и пояс. Каждую снимите дважды поверх тонкого белья.",
+        en: "This experimental base asks only for the four measurements that actually change the cup and band. Take each twice over light underwear.",
+      },
+    }
+  : section);
+
 export const schema = {
   id: "bralette_soft",
   name: { ru: "Мягкий бралетт без каркасов", en: "Wireless soft bralette" },
   bodyRegion: "upper",
   unit: "cm",
-  sections: upperBodySections,
-  fields: upperBodyFields,
-  defaults: upperBodyDefaults,
+  sections,
+  fields,
+  defaults,
   options,
   optionDefaults: optionDefaults(options),
   validate: validateUpperBody,

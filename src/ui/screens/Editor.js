@@ -1,12 +1,24 @@
 import { createEl } from "../../core/utils/dom.js";
 import { getModule } from "../../core/pattern/registry.js";
+import { moduleAcceptsDraftVersion } from "../../core/pattern/PatternModule.js";
 import { validateSchema } from "../../core/validate/validate.js";
 import { svgExport } from "../../core/export/svgExport.js";
 import { pdfExport } from "../../core/export/pdfExport.js";
 import { buildDxfExport } from "../../core/export/dxfExport.js";
+import {
+  qualifyExportFilename,
+  resolveExportSafety,
+  strictestExportSafety,
+} from "../../core/export/exportSafety.js";
 import { createStoredZip, parseStoredZip } from "../../core/export/storedZip.js";
 import { createRuleBasedSizeBatch } from "../../core/grading/patternBatch.js";
 import { uid } from "../../core/utils/id.js";
+import {
+  evaluateMeasurementVerification,
+  sanitizeMeasurementVerificationForSchema,
+  withMeasurementVerification,
+} from "../../core/validate/measurementVerification.js";
+import { ExportSafetyDialog } from "../components/ExportSafetyDialog.js";
 import { Form } from "../components/Form.js";
 import { HelpButton } from "../components/HelpButton.js";
 import { PatternAdjuster } from "../components/PatternAdjuster.js";
@@ -28,6 +40,7 @@ import {
   assertProfileCount,
   JsonImportError,
   jsonImportErrorMessage,
+  profileListFromBackup,
   readBoundedJsonFile,
 } from "../utils/jsonImport.js";
 import {
@@ -142,13 +155,17 @@ export function Editor({
   // Legacy drafts without a version remain readable. Once a version is stored,
   // never apply it to a different drafting engine silently.
   const storedDraft = candidateStoredDraft
-    && (!candidateStoredDraft.moduleVersion || candidateStoredDraft.moduleVersion === module.version)
+    && moduleAcceptsDraftVersion(module, candidateStoredDraft.moduleVersion)
     ? candidateStoredDraft
     : null;
   const moduleProfiles = (Array.isArray(state.profiles) ? state.profiles : []).filter((profile) => profile.moduleId === moduleId);
   const selectedProfileId = state.lastProfileIdByModule?.[moduleId]
     || (moduleProfiles.some((profile) => profile.id === state.lastProfileId) ? state.lastProfileId : null);
-  const lastProfile = moduleProfiles.find((profile) => profile.id === selectedProfileId);
+  const selectedProfile = moduleProfiles.find((profile) => profile.id === selectedProfileId);
+  const lastProfile = selectedProfile
+    && moduleAcceptsDraftVersion(module, selectedProfile.schemaVersion)
+    ? selectedProfile
+    : null;
   const values = {
     ...module.schema.defaults,
     ...module.schema.optionDefaults,
@@ -162,6 +179,15 @@ export function Editor({
   };
   Object.assign(values, canonicalizeOptions(module.schema, values));
   Object.assign(values, normalizedAdjustments(module.schema, values));
+  const sanitizeVerification = (raw) => sanitizeMeasurementVerificationForSchema(module.schema, raw);
+  let measurementVerification = sanitizeVerification(
+    storedDraft ? storedDraft.measurementVerification : lastProfile?.measurementVerification,
+  );
+  let measurementVerificationResult = evaluateMeasurementVerification(
+    module.schema,
+    values,
+    measurementVerification,
+  );
   const editableKeys = [
     ...module.schema.fields.map((field) => field.key),
     ...(module.schema.options || []).map((option) => option.key),
@@ -196,15 +222,23 @@ export function Editor({
   const measurementValues = () => Object.fromEntries(module.schema.fields.map((field) => [field.key, values[field.key]]));
   const optionValues = () => Object.fromEntries((module.schema.options || []).map((option) => [option.key, values[option.key]]));
   const adjustmentValues = () => Object.fromEntries((module.schema.adjustments || []).map((adjustment) => [adjustment.key, values[adjustment.key]]));
-  const persistDraft = () => updateDraft({
-    moduleId,
-    moduleVersion: module.version,
-    measurements: measurementValues(),
-    options: optionValues(),
-    adjustments: adjustmentValues(),
-    paperSize,
-    preview: previewSettings,
-  });
+  // Several child controls report their initial state while they are being
+  // constructed. Do not treat those notifications as a user edit: doing so
+  // would overwrite an incompatible/legacy saved draft merely by opening it.
+  let draftPersistenceReady = false;
+  const persistDraft = () => {
+    if (!draftPersistenceReady) return;
+    updateDraft({
+      moduleId,
+      moduleVersion: module.version,
+      measurements: measurementValues(),
+      options: optionValues(),
+      adjustments: adjustmentValues(),
+      measurementVerification,
+      paperSize,
+      preview: previewSettings,
+    });
+  };
   const measurementsSummary = () => module.schema.fields.map((field) => {
     const code = field.code ? " (" + field.code + ")" : "";
     return resolveText(field.label) + code + ": " + values[field.key] + module.schema.unit;
@@ -272,6 +306,20 @@ export function Editor({
     createEl("strong", { text: copy(language, "Печать в реальном размере", "True-size output") }),
     createEl("span", { text: copy(language, "Для PDF сначала распечатайте контрольную страницу при 100% / Actual size. DXF формируется в миллиметрах и проходит внутреннее повторное чтение.", "For PDF, print the calibration page at 100% / Actual size first. DXF is written in millimetres and passes an internal round-trip read.") }),
   );
+  if (module.status === "experimental") {
+    const safetyNotice = createEl("div", { className: "export-safety-inline" });
+    safetyNotice.append(
+      createEl("strong", { text: "⚠" }),
+      createEl("span", {
+        text: copy(
+          language,
+          "Экспериментальная основа: SVG, PDF и DXF будут помечены «только для макета» и потребуют отдельного подтверждения.",
+          "Experimental base: SVG, PDF, and DXF are marked toile-only and require an explicit acknowledgement.",
+        ),
+      }),
+    );
+    exportInfo.appendChild(safetyNotice);
+  }
   const exportControls = createEl("div", { className: "export-controls" });
   const svgButton = createEl("button", { className: "secondary-button export-button", text: "SVG", attrs: { type: "button" } });
   const dxfButton = createEl("button", { className: "secondary-button export-button", text: "DXF (mm)", attrs: { type: "button" } });
@@ -292,6 +340,7 @@ export function Editor({
   exportCard.append(exportInfo, exportControls);
 
   const toast = Toast();
+  const exportSafetyDialog = ExportSafetyDialog({ language });
   const templateDialog = TemplateSaveDialog({
     language,
     onSave: async (metadata) => {
@@ -337,6 +386,39 @@ export function Editor({
       createEl("span", { text: resolveText(draft.meta?.fitNotice || "") }),
     );
     qualityCard.appendChild(status);
+    const verificationStatus = createEl("div", { className: "check-row" });
+    verificationStatus.append(
+      createEl("span", {
+        className: measurementVerificationResult.verified ? "check-dot is-pass" : "check-dot is-warning",
+        text: measurementVerificationResult.verified ? "✓" : "!",
+      }),
+      createEl("span", {
+        className: "check-label",
+        text: copy(language, "Повторная проверка мерок", "Repeat measurement check"),
+      }),
+      createEl("strong", {
+        text: measurementVerificationResult.verified
+          ? copy(language, "совпали", "matched")
+          : measurementVerificationResult.status === "mismatch"
+            ? copy(language, "есть расхождение", "mismatch")
+            : `${measurementVerificationResult.confirmedCount}/${measurementVerificationResult.total}`,
+      }),
+    );
+    qualityCard.appendChild(verificationStatus);
+    if (module.fitRisk) {
+      const risk = createEl("div", { className: "check-row" });
+      risk.append(
+        createEl("span", { className: "check-dot is-warning", text: "!" }),
+        createEl("span", { className: "check-label", text: copy(language, "Риск посадки", "Fit risk") }),
+        createEl("strong", {
+          text: module.fitRisk.level === "high"
+            ? copy(language, "высокий", "high")
+            : copy(language, "средний", "moderate"),
+        }),
+      );
+      risk.title = resolveText(module.fitRisk.reason);
+      qualityCard.appendChild(risk);
+    }
     (draft.meta?.checks || []).forEach((check) => {
       const row = createEl("div", { className: "check-row" });
       row.append(
@@ -385,13 +467,32 @@ export function Editor({
       return;
     }
     profiles.forEach((profile) => {
+      const compatible = moduleAcceptsDraftVersion(module, profile.schemaVersion);
       const row = createEl("div", { className: "saved-profile" });
       const info = createEl("button", { className: "profile-load", attrs: { type: "button" } });
       info.append(createEl("strong", { text: profile.name }), createEl("span", { text: formatProfileDate(profile.updatedAt, language) }));
+      if (!compatible) {
+        info.disabled = true;
+        info.title = copy(
+          language,
+          `Профиль версии ${profile.schemaVersion} сохранён, но не совместим с модулем ${module.version}.`,
+          `Profile version ${profile.schemaVersion} is preserved but is not compatible with module ${module.version}.`,
+        );
+        info.appendChild(createEl("span", {
+          text: copy(language, `Несовместимая версия ${profile.schemaVersion}`, `Incompatible version ${profile.schemaVersion}`),
+        }));
+      }
       info.addEventListener("click", () => {
+        if (!compatible) return;
         const profileValues = completeProfileValues(module.schema, profile);
         Object.assign(profileValues, canonicalizeOptions(module.schema, profileValues));
         Object.assign(profileValues, normalizedAdjustments(module.schema, profileValues));
+        measurementVerification = sanitizeVerification(profile.measurementVerification);
+        measurementVerificationResult = evaluateMeasurementVerification(
+          module.schema,
+          profileValues,
+          measurementVerification,
+        );
         setState({
           lastProfileId: profile.id,
           lastProfileIdByModule: {
@@ -400,16 +501,19 @@ export function Editor({
           },
           draft: {
             moduleId,
+            moduleVersion: module.version,
             measurements: Object.fromEntries(module.schema.fields.map((field) => [field.key, profileValues[field.key]])),
             options: Object.fromEntries((module.schema.options || []).map((option) => [option.key, profileValues[option.key]])),
             adjustments: Object.fromEntries((module.schema.adjustments || []).map((adjustment) => [adjustment.key, profileValues[adjustment.key]])),
+            measurementVerification,
             paperSize,
             preview: previewSettings,
           },
         });
         Object.assign(values, profileValues);
         adjuster?.setValues(profileValues);
-        form?.setValues(profileValues);
+        form?.setMeasurementVerification(measurementVerification);
+        form?.setValues(profileValues, { preserveMeasurementVerification: true });
         toast.show(copy(language, "Профиль загружен", "Profile loaded"));
       });
       const remove = createEl("button", { className: "profile-delete", text: "×", attrs: { type: "button", "aria-label": copy(language, "Удалить профиль", "Delete profile") } });
@@ -446,6 +550,7 @@ export function Editor({
         measurements: measurementValues(),
         options: optionValues(),
         adjustments: adjustmentValues(),
+        measurementVerification,
         updatedAt: new Date().toISOString(),
       });
       toast.show(isPersistenceAvailable()
@@ -461,13 +566,16 @@ export function Editor({
       if (!file) return;
       try {
         const parsed = await readBoundedJsonFile(file);
-        const incoming = Array.isArray(parsed) ? parsed : parsed.profiles;
+        const incoming = profileListFromBackup(parsed);
         assertProfileCount(incoming);
         const existingProfiles = Array.isArray(getState().profiles) ? getState().profiles : [];
         const validIncoming = prepareImportedProfiles(incoming, existingProfiles, () => uid("profile"), moduleId);
         const checkedIncoming = validIncoming.map((profile) => {
           const profileModule = getModule(profile.moduleId);
           if (!profileModule) throw new Error("Unknown profile module");
+          if (!moduleAcceptsDraftVersion(profileModule, profile.schemaVersion)) {
+            throw new Error(`Incompatible profile module version: ${profile.schemaVersion}`);
+          }
           const profileValues = completeProfileValues(profileModule.schema, profile);
           const profileOptions = canonicalizeOptions(profileModule.schema, profileValues);
           Object.assign(profileValues, profileOptions);
@@ -476,8 +584,10 @@ export function Editor({
           if (Object.keys(validateSchema(profileModule.schema, profileValues)).length) {
             throw new Error("Invalid profile values");
           }
+          const { measurementVerification: _untrustedVerification, ...safeProfile } = profile;
           return {
-            ...profile,
+            ...safeProfile,
+            schemaVersion: profileModule.version,
             measurements: Object.fromEntries(profileModule.schema.fields.map((field) => [field.key, profileValues[field.key]])),
             options: profileOptions,
             adjustments: profileAdjustments,
@@ -489,8 +599,8 @@ export function Editor({
         assertProfileCount(mergedProfiles);
         replaceProfiles(mergedProfiles);
         toast.show(isPersistenceAvailable()
-          ? copy(language, "Профили импортированы", "Profiles imported")
-          : copy(language, "Профили импортированы только в текущий сеанс: локальное хранилище недоступно.", "Profiles were imported for this session only because local storage is unavailable."));
+          ? copy(language, "Профили импортированы. Для безопасности повторные замеры нужно подтвердить заново.", "Profiles imported. For safety, repeat measurements must be confirmed again.")
+          : copy(language, "Профили импортированы только в текущий сеанс; повторные замеры нужно подтвердить заново.", "Profiles were imported for this session only; repeat measurements must be confirmed again."));
       } catch (error) {
         toast.show(jsonImportErrorMessage(error, language, "profiles"));
       } finally {
@@ -509,12 +619,15 @@ export function Editor({
     setExportEnabled(Boolean(draft) && Object.keys(currentErrors).length === 0);
   }
 
-  function handleChange(nextValues, fieldErrors) {
+  function handleChange(nextValues, fieldErrors, verificationResult = null) {
+    const isInitialFormRender = form == null;
     Object.assign(values, nextValues);
+    measurementVerificationResult = verificationResult
+      || evaluateMeasurementVerification(module.schema, values, measurementVerification);
     recordHistory();
     currentErrors = fieldErrors;
     gradingPanel?.invalidate();
-    persistDraft();
+    if (!isInitialFormRender) persistDraft();
     if (Object.keys(fieldErrors).length) {
       draft = null;
       preview.render();
@@ -545,6 +658,15 @@ export function Editor({
       liveStatus.classList.add("is-warning");
       toast.show(error?.message || copy(language, "Не удалось построить выкройку.", "Drafting failed."));
     }
+  }
+
+  function handleMeasurementVerificationChange(nextValue, verificationResult) {
+    measurementVerification = sanitizeVerification(nextValue);
+    measurementVerificationResult = verificationResult
+      || evaluateMeasurementVerification(module.schema, values, measurementVerification);
+    persistDraft();
+    gradingPanel?.invalidate();
+    renderQuality();
   }
 
   function handleAdjustmentChange(key, nextValue) {
@@ -595,7 +717,6 @@ export function Editor({
     applyingHistory = true;
     try {
       const restored = history[historyIndex];
-      Object.assign(values, restored);
       adjuster?.setValues(restored);
       form?.setValues(restored);
     } finally {
@@ -611,12 +732,27 @@ export function Editor({
   form = Form({
     schema: module.schema,
     values,
+    measurementVerification,
+    onMeasurementVerificationChange: handleMeasurementVerificationChange,
     onChange: handleChange,
     onSubmit: () => {
       draftColumn.scrollIntoView({ behavior: "smooth", block: "start" });
       toast.show(copy(language, "Результат и проверки обновлены", "Result and checks updated"));
     },
   });
+  if (candidateStoredDraft?.moduleVersion && !moduleAcceptsDraftVersion(module, candidateStoredDraft.moduleVersion)) {
+    toast.show(copy(
+      language,
+      `Черновик версии ${candidateStoredDraft.moduleVersion} несовместим с ${module.version}: он сохранён без изменений, открыты безопасные значения по умолчанию.`,
+      `Draft version ${candidateStoredDraft.moduleVersion} is incompatible with ${module.version}. It was preserved unchanged and safe defaults were opened.`,
+    ));
+  } else if (storedDraft?.moduleVersion && storedDraft.moduleVersion !== module.version) {
+    toast.show(copy(
+      language,
+      `Черновик ${storedDraft.moduleVersion} открыт совместимым модулем ${module.version}. Он обновится только после вашего изменения.`,
+      `Draft ${storedDraft.moduleVersion} was opened by compatible module ${module.version}. It will update only after your edit.`,
+    ));
+  }
   controlsColumn.append(historyToolbar, form.el);
   if (module.schema.adjustments?.length) {
     adjuster = PatternAdjuster({
@@ -642,50 +778,104 @@ export function Editor({
   }).join(", ");
   const filenameBase = safeFilename(moduleId);
 
+  const ensureMeasurementVerification = () => {
+    measurementVerificationResult = evaluateMeasurementVerification(
+      module.schema,
+      values,
+      measurementVerification,
+    );
+    if (measurementVerificationResult.verified) return true;
+    form?.revealMeasurementVerification();
+    renderQuality();
+    toast.show(measurementVerificationResult.status === "mismatch"
+      ? copy(
+          language,
+          "Повторные мерки расходятся. Перемерьте отмеченные значения — физический экспорт остановлен.",
+          "The repeat measurements differ. Recheck the marked values; physical export is stopped.",
+        )
+      : copy(
+          language,
+          "Перед физическим экспортом выберите способ замера и повторите все мерки.",
+          "Choose who measured and repeat every measurement before physical export.",
+        ));
+    return false;
+  };
+
+  const guardPhysicalExport = (format, action, requestedSafety = null) => {
+    if (!draft || !ensureMeasurementVerification()) return false;
+    const safety = strictestExportSafety([
+      resolveExportSafety({ module, draft }),
+      requestedSafety,
+    ]);
+    const exportDraft = withMeasurementVerification(draft, measurementVerificationResult);
+    const run = () => action(exportDraft, safety);
+    if (safety.requiresConfirmation) {
+      exportSafetyDialog.open({ format, onConfirm: run });
+      return true;
+    }
+    run();
+    return true;
+  };
+
   svgButton.addEventListener("click", () => {
-    if (!draft) return;
-    const svg = svgExport(draft, completeSummary(), {
-      resolveText,
-      labels: {
-        unitsLabel: copy(language, "Единицы", "Units"),
-        seamAllowanceLabel: copy(language, "Припуски", "Seam allowances"),
-        seamAllowanceOff: copy(language, "нет", "off"),
-        legendLines: copy(language, "Сплошная — линия кроя; пунктир — линия строчки", "Solid = cut line; dashed = stitch line"),
-        calibration: "50mm",
-        calibrationLarge: "100mm",
-        pieceLabel: copy(language, "Деталь", "Piece"),
-        cutLabel: copy(language, "Крой", "Cut"),
-        materialLabel: copy(language, "Материал", "Material"),
-        moduleLabel: copy(language, "Модель", "Module"),
-      },
+    guardPhysicalExport("SVG", (exportDraft, safety) => {
+      const svg = svgExport(exportDraft, completeSummary(), {
+        module,
+        resolveText,
+        labels: {
+          unitsLabel: copy(language, "Единицы", "Units"),
+          seamAllowanceLabel: copy(language, "Припуски", "Seam allowances"),
+          seamAllowanceOff: copy(language, "нет", "off"),
+          legendLines: copy(language, "Сплошная — линия кроя; пунктир — линия строчки", "Solid = cut line; dashed = stitch line"),
+          calibration: "50mm",
+          calibrationLarge: "100mm",
+          pieceLabel: copy(language, "Деталь", "Piece"),
+          cutLabel: copy(language, "Крой", "Cut"),
+          materialLabel: copy(language, "Материал", "Material"),
+          moduleLabel: copy(language, "Модель", "Module"),
+        },
+      });
+      downloadBlob({
+        blob: new Blob([svg], { type: "image/svg+xml" }),
+        filename: qualifyExportFilename(`${filenameBase}.svg`, safety),
+        mimeType: "image/svg+xml",
+      });
     });
-    downloadBlob({ blob: new Blob([svg], { type: "image/svg+xml" }), filename: filenameBase + ".svg", mimeType: "image/svg+xml" });
   });
 
   dxfButton.addEventListener("click", () => {
-    if (!draft) return;
-    try {
-      const result = buildDxfExport(draft, {
-        outputUnit: "mm",
-        curveTolerance: 0.2,
-        resolveText: resolveEnglish,
-      });
-      downloadBlob({
-        blob: new Blob([result.data], { type: "application/dxf" }),
-        filename: filenameBase + "_mm.dxf",
-        mimeType: "application/dxf",
-      });
-      toast.show(copy(
-        language,
-        `DXF готов: ${result.report.pathCount} контуров, единицы мм, внутренняя проверка пройдена. Перед раскроем проверьте импорт в CAD производства.`,
-        `DXF ready: ${result.report.pathCount} contours, millimetres, internal round-trip passed. Verify import in the production CAD before cutting.`,
-      ));
-    } catch (error) {
-      toast.show(error?.issues?.[0] || error?.message || copy(language, "Не удалось подготовить DXF.", "Could not create DXF."));
-    }
+    guardPhysicalExport("DXF", (exportDraft, safety) => {
+      try {
+        const result = buildDxfExport(exportDraft, {
+          module,
+          outputUnit: "mm",
+          curveTolerance: 0.2,
+          resolveText: resolveEnglish,
+        });
+        downloadBlob({
+          blob: new Blob([result.data], { type: "application/dxf" }),
+          filename: qualifyExportFilename(`${filenameBase}_mm.dxf`, safety),
+          mimeType: "application/dxf",
+        });
+        toast.show(copy(
+          language,
+          `DXF готов: ${result.report.pathCount} контуров, единицы мм, внутренняя проверка пройдена. Перед раскроем проверьте импорт в CAD производства.`,
+          `DXF ready: ${result.report.pathCount} contours, millimetres, internal round-trip passed. Verify import in the production CAD before cutting.`,
+        ));
+      } catch (error) {
+        toast.show(error?.issues?.[0] || error?.message || copy(language, "Не удалось подготовить DXF.", "Could not create DXF."));
+      }
+    });
   });
 
   const buildGradingResult = async (specification) => {
+    if (!ensureMeasurementVerification()) {
+      throw new Error(copy(
+        language,
+        "Размерный ряд не создан: сначала завершите повторную проверку базовых мерок.",
+        "Size set was not created: complete the repeat check of the base measurements first.",
+      ));
+    }
     const batch = createRuleBasedSizeBatch(
       module,
       {
@@ -701,13 +891,28 @@ export function Editor({
         commonAdjustments: adjustmentValues(),
       },
     );
-    const variants = batch.variants.map((variant) => {
+    const variantsWithSafety = batch.variants.map((variant) => ({
+      variant,
+      safety: resolveExportSafety({ module, draft: variant.draft }),
+    }));
+    const batchSafety = strictestExportSafety([
+      resolveExportSafety({ module, draft }),
+      ...variantsWithSafety.map((entry) => entry.safety),
+    ]);
+    const variants = variantsWithSafety.map(({ variant, safety: variantSafety }) => {
+      // The repeat check belongs only to the user's base measurements. Values
+      // calculated for S/L/etc. were not measured and must never inherit a
+      // misleading "verified" marker.
       const dxf = buildDxfExport(variant.draft, {
+        module,
         outputUnit: "mm",
         curveTolerance: 0.2,
         resolveText: resolveEnglish,
       });
-      const fileName = `${filenameBase}_${safeFilename(variant.name || variant.id)}_mm.dxf`;
+      const fileName = qualifyExportFilename(
+        `${filenameBase}_${safeFilename(variant.name || variant.id)}_mm.dxf`,
+        variantSafety,
+      );
       return {
         id: variant.id,
         name: variant.name,
@@ -718,6 +923,7 @@ export function Editor({
         ),
         fileName,
         dxf,
+        safety: variantSafety,
       };
     });
     const manifest = {
@@ -730,12 +936,29 @@ export function Editor({
         aamaAstmCertified: false,
         factoryImportVerified: false,
         internalDxfRoundTrip: true,
+        fitStatus: batchSafety.status,
+        exportWarningCode: batchSafety.code,
+        usage: batchSafety.usage,
+        productionVerified: batchSafety.productionVerified,
+        baseMeasurementsVerified: true,
+        verificationScope: "base-profile-only",
+        derivedMeasurementsDirectlyVerified: false,
+        baseMeasurementVerification: {
+          status: measurementVerificationResult.status,
+          method: measurementVerificationResult.method,
+          confirmedCount: measurementVerificationResult.confirmedCount,
+          total: measurementVerificationResult.total,
+          scope: "base-profile-only",
+          derivedSizesMeasured: false,
+        },
       },
       files: variants.map((variant) => ({
         sizeId: variant.id,
         sizeName: variant.name,
         file: `dxf/${variant.fileName}`,
         report: variant.dxf.report,
+        fitStatus: variant.safety.status,
+        exportWarningCode: variant.safety.code,
       })),
     };
     const archive = createStoredZip([
@@ -748,57 +971,66 @@ export function Editor({
     }
     return {
       variants,
-      downloadVariant: (variant) => downloadBlob({
+      downloadVariant: (variant) => guardPhysicalExport("DXF", () => downloadBlob({
         blob: new Blob([variant.dxf.data], { type: "application/dxf" }),
         filename: variant.fileName,
         mimeType: "application/dxf",
-      }),
-      downloadPackage: () => downloadBlob({
+      }), variant.safety),
+      downloadPackage: () => guardPhysicalExport("DXF ZIP", () => downloadBlob({
         blob: new Blob([archive], { type: "application/zip" }),
-        filename: `${filenameBase}_size-set_dxf.zip`,
+        filename: qualifyExportFilename(`${filenameBase}_size-set_dxf.zip`, batchSafety),
         mimeType: "application/zip",
-      }),
+      }), batchSafety),
     };
   };
 
   pdfButton.addEventListener("click", () => {
-    if (!draft) return;
-    const result = pdfExport(draft, {
-      marginMm: 10,
-      overlapMm: 10,
-      paperSize,
-      resolveText: resolveEnglish,
-      info: {
-        moduleName: resolveEnglish(module.schema.name),
-        generatedAt: new Date().toISOString().slice(0, 10),
-        optionsSummary: [exportOptionsSummary(), ...adjustmentsSummary(true)].filter(Boolean).join("; "),
-        seamAllowance: String(draft.meta?.seamAllowanceMm || 0) + "mm",
-        legendText: "Solid = cut line; dashed = stitch line",
-        instructionText: "Print calibration page first. Use 100% / Actual size. Disable Fit and Shrink.",
-      },
-      labels: {
-        patternLabel: "Pattern",
-        generatedLabel: "Generated",
-        optionsLabel: "Options",
-        seamAllowanceLabel: "Seam allowance",
-      },
+    guardPhysicalExport("PDF", (exportDraft, safety) => {
+      const result = pdfExport(exportDraft, {
+        module,
+        marginMm: 10,
+        overlapMm: 10,
+        paperSize,
+        resolveText: resolveEnglish,
+        info: {
+          moduleName: resolveEnglish(module.schema.name),
+          generatedAt: new Date().toISOString().slice(0, 10),
+          optionsSummary: [exportOptionsSummary(), ...adjustmentsSummary(true)].filter(Boolean).join("; "),
+          seamAllowance: String(exportDraft.meta?.seamAllowanceMm || 0) + "mm",
+          legendText: "Solid = cut line; dashed = stitch line",
+          instructionText: "Print calibration page first. Use 100% / Actual size. Disable Fit and Shrink.",
+        },
+        labels: {
+          patternLabel: "Pattern",
+          generatedLabel: "Generated",
+          optionsLabel: "Options",
+          seamAllowanceLabel: "Seam allowance",
+        },
+      });
+      downloadBlob({
+        blob: result.data,
+        filename: qualifyExportFilename(`${filenameBase}_${paperSize}.pdf`, safety),
+        mimeType: "application/pdf",
+      });
+      const totalPages = result.totalPageCount ?? result.pageCount + 1;
+      toast.show(copy(language, "PDF подготовлен: " + totalPages + " стр. (первая — контрольная)", "PDF ready: " + totalPages + " pages (calibration first)."));
     });
-    downloadBlob({ blob: result.data, filename: filenameBase + "_" + paperSize + ".pdf", mimeType: "application/pdf" });
-    const totalPages = result.totalPageCount ?? result.pageCount + 1;
-    toast.show(copy(language, "PDF подготовлен: " + totalPages + " стр. (первая — контрольная)", "PDF ready: " + totalPages + " pages (calibration first)."));
   });
 
   projectButton.addEventListener("click", () => {
     if (!draft) return;
     const payload = {
       format: "lekalo-project",
-      version: 2,
+      version: 3,
       moduleId,
       moduleVersion: module.version,
+      moduleStatus: module.status,
+      fitStatus: draft.meta?.fitStatus || module.status,
       savedAt: new Date().toISOString(),
       measurements: measurementValues(),
       options: optionValues(),
       adjustments: adjustmentValues(),
+      measurementVerification,
       paperSize,
       checks: draft.meta?.checks || [],
     };
@@ -818,7 +1050,23 @@ export function Editor({
       if (parsed?.format !== "lekalo-project" || parsed?.moduleId !== moduleId) {
         throw new Error(copy(language, "Это файл другой модели или неизвестного формата.", "This file belongs to another pattern or has an unknown format."));
       }
-      if (parsed.moduleVersion && parsed.moduleVersion !== module.version) {
+      const projectFormatVersion = parsed.version == null ? 1 : Number(parsed.version);
+      if (!Number.isSafeInteger(projectFormatVersion) || ![1, 2, 3].includes(projectFormatVersion)) {
+        throw new Error(copy(
+          language,
+          `Версия формата проекта ${String(parsed.version)} не поддерживается.`,
+          `Project format version ${String(parsed.version)} is not supported.`,
+        ));
+      }
+      if (projectFormatVersion >= 2
+        && (typeof parsed.moduleVersion !== "string" || !parsed.moduleVersion.trim())) {
+        throw new Error(copy(
+          language,
+          `В проекте формата ${projectFormatVersion} отсутствует обязательная версия модуля.`,
+          `Project format ${projectFormatVersion} is missing its required module version.`,
+        ));
+      }
+      if (!moduleAcceptsDraftVersion(module, parsed.moduleVersion)) {
         throw new Error(copy(
           language,
           `Проект создан для версии ${parsed.moduleVersion}, а установлена ${module.version}. Автоматическая миграция пока недоступна.`,
@@ -844,10 +1092,23 @@ export function Editor({
         paperSelect.value = paperSize;
         onPaperSizeChange?.(paperSize);
       }
+      // External JSON can be edited, so its claimed repeat check is never
+      // trusted as permission for physical export.
+      measurementVerification = sanitizeVerification({});
+      measurementVerificationResult = evaluateMeasurementVerification(
+        module.schema,
+        nextValues,
+        measurementVerification,
+      );
       Object.assign(values, nextValues);
       adjuster?.setValues(normalizedAdjustments(module.schema, nextValues));
-      form?.setValues(nextValues);
-      toast.show(copy(language, "Проект открыт и пересчитан", "Project opened and recalculated"));
+      form?.setMeasurementVerification(measurementVerification);
+      form?.setValues(nextValues, { preserveMeasurementVerification: true });
+      toast.show(copy(
+        language,
+        "Проект открыт и пересчитан. Перед физическим экспортом повторите мерки заново.",
+        "Project opened and redrafted. Repeat the measurements again before physical export.",
+      ));
     } catch (error) {
       toast.show(error instanceof JsonImportError
         ? jsonImportErrorMessage(error, language, "project")
@@ -926,12 +1187,14 @@ export function Editor({
   document.addEventListener("keydown", handleHistoryShortcut);
 
   page.append(header, workspace, mobileNavigation, toast.el);
+  draftPersistenceReady = true;
   page.destroy = () => {
     document.removeEventListener("keydown", handleHistoryShortcut);
     unsubscribeProfileChanges();
     sectionObserver?.disconnect();
     preview.destroy?.();
     templateDialog.destroy();
+    exportSafetyDialog.destroy();
   };
   refreshResult();
   return page;
